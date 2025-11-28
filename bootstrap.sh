@@ -140,12 +140,19 @@ phase1_validate() {
         exit 1
     fi
 
-    # Get tenancy info
-    OCI_TENANCY=$(oci iam compartment list --all --compartment-id-in-subtree true \
-        --query 'data[0]."compartment-id"' --raw-output 2>/dev/null | cut -d'.' -f1-5)
-
-    if [[ -z "$OCI_TENANCY" ]]; then
+    # Get tenancy info (fast method)
+    if [[ -n "${OCI_TENANCY:-}" ]]; then
+        # Already set (e.g., by Cloud Shell)
+        :
+    elif [[ -n "${OCI_CLI_TENANCY:-}" ]]; then
+        OCI_TENANCY="$OCI_CLI_TENANCY"
+    else
+        # Get from config or API
         OCI_TENANCY=$(grep '^tenancy' ~/.oci/config 2>/dev/null | head -1 | cut -d'=' -f2 | tr -d ' ')
+        if [[ -z "$OCI_TENANCY" ]]; then
+            # Fallback: get root compartment (tenancy) from a simple API call
+            OCI_TENANCY=$(oci iam compartment list --query 'data[?contains("compartment-id", `tenancy`)].id | [0]' --raw-output 2>/dev/null)
+        fi
     fi
 
     log_info "Tenancy: ${OCI_TENANCY:0:50}..."
