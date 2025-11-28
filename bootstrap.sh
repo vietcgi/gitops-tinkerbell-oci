@@ -198,7 +198,7 @@ phase2_free_tier() {
     REGIONS=$(oci iam region list --query 'data[*].name' --raw-output | jq -r '.[]' | sort)
 
     # Show regions that typically have good free tier availability
-    RECOMMENDED="us-ashburn-1 us-phoenix-1 eu-frankfurt-1 uk-london-1 ap-tokyo-1"
+    RECOMMENDED="us-ashburn-1 us-phoenix-1 us-sanjose-1 eu-frankfurt-1 uk-london-1 ap-tokyo-1"
 
     echo "  Recommended (usually have capacity):"
     for r in $RECOMMENDED; do
