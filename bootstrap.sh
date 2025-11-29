@@ -28,7 +28,6 @@ NC='\033[0m'
 
 # Detect OS
 OS="$(uname -s)"
-ARCH="$(uname -m)"
 
 # Logging
 log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
