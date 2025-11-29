@@ -335,6 +335,19 @@ else
     log "WARNING: Could not determine private IP for LoadBalancer pool"
 fi
 
+# Create GatewayClass for Cilium Gateway API
+# This is required for Cilium to process Gateway resources
+log "Creating Cilium GatewayClass..."
+cat <<EOF | kubectl apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: cilium
+spec:
+  controllerName: io.cilium/gateway-controller
+EOF
+log "Cilium GatewayClass created"
+
 #-----------------------------------------------------------------------------
 # Step 4: Install Flux
 #-----------------------------------------------------------------------------
