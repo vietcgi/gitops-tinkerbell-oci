@@ -269,20 +269,11 @@ log "Adding Cilium Helm repository..."
 helm repo add cilium https://helm.cilium.io/
 helm repo update
 
-# Get the latest stable Cilium version from Helm repo
-# Use || true to prevent set -e from exiting on grep failure
-CILIUM_VERSION=$(helm search repo cilium/cilium --versions 2>/dev/null | awk '/^cilium\/cilium[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+[[:space:]]/ {print $2; exit}' || true)
-if [ -z "$CILIUM_VERSION" ]; then
-    log "Could not determine latest Cilium version from helm, using fallback"
-    CILIUM_VERSION="1.18.4"
-fi
-log "Using Cilium version: $CILIUM_VERSION"
-
 # Install Cilium CNI via Helm
 # Configuration matches kubernetes/infrastructure/cilium/release.yaml EXACTLY
 if ! kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent --no-headers 2>/dev/null | grep -q Running; then
-    log "Installing Cilium CNI via Helm (version $CILIUM_VERSION)..."
-    helm install cilium cilium/cilium --version "$CILIUM_VERSION" \
+    log "Installing Cilium CNI via Helm..."
+    helm install cilium cilium/cilium --version 1.18.4 \
         --namespace kube-system \
         --set kubeProxyReplacement=true \
         --set k8sServiceHost=localhost \
