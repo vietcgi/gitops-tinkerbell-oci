@@ -115,29 +115,31 @@ spec:
       enabled: false  # Using Cilium instead
 ---
 # Ingress for Grafana
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: grafana
-  namespace: monitoring
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  ingressClassName: cilium
-  rules:
-    # TODO: CHANGE THIS to your actual domain
-    - host: grafana.CHANGE_ME.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: kube-prometheus-stack-grafana
-                port:
-                  number: 80
-  tls:
-    - hosts:
-        # TODO: CHANGE THIS to your actual domain
-        - grafana.CHANGE_ME.com
-      secretName: grafana-tls
+# Uncomment and configure domain when ready
+# Access via port-forward until domain is configured:
+#   kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+#
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: grafana
+#   namespace: monitoring
+#   annotations:
+#     cert-manager.io/cluster-issuer: letsencrypt-staging  # Use staging first
+# spec:
+#   ingressClassName: cilium
+#   rules:
+#     - host: grafana.yourdomain.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: kube-prometheus-stack-grafana
+#                 port:
+#                   number: 80
+#   tls:
+#     - hosts:
+#         - grafana.yourdomain.com
+#       secretName: grafana-tls

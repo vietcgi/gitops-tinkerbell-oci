@@ -1,0 +1,48 @@
+---
+# ClusterIssuers for Let's Encrypt
+# These are created after cert-manager is installed
+#
+# To configure email, create a ConfigMap before applying:
+#   kubectl create configmap cluster-config -n flux-system \
+#     --from-literal=acme-email=you@example.com \
+#     --from-literal=domain=example.com
+#
+# Or edit the email below directly before deploying.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@metal-foundry.local
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: cilium
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@metal-foundry.local
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: cilium
+---
+# Self-signed issuer for internal services
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+spec:
+  selfSigned: {}
