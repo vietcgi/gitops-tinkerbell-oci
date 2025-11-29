@@ -34,12 +34,11 @@ spec:
     # Required: Pod CIDR for trusted proxies (K3s default)
     trustedProxies: "10.42.0.0/16"
 
-    # Required: Public IP for LoadBalancer
-    publicIP: "167.234.212.213"
+    # Public IP - leave empty to auto-assign from Cilium LoadBalancer
+    # publicIP: ""
 
-    # Required: HTTP server for HookOS artifacts (kernel/initramfs)
-    # This will be served by the hook-files service
-    artifactsFileServer: "http://167.234.212.213:7173"
+    # HookOS artifacts served via ingress
+    artifactsFileServer: "https://tinkerbell.qualityspace.com"
 
     deployment:
       replicas: 1
