@@ -15,6 +15,22 @@ terraform {
       version = ">= 2.5.2" # Nov 2025
     }
   }
+
+  # State stored in OCI Object Storage (S3-compatible)
+  backend "s3" {
+    bucket                      = "metal-foundry-state"
+    key                         = "terraform.tfstate"
+    region                      = "us-sanjose-1"
+    endpoints = {
+      s3 = "https://axs1yzmj7jbw.compat.objectstorage.us-sanjose-1.oraclecloud.com"
+    }
+    skip_region_validation      = true
+    skip_credentials_validation = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+    skip_s3_checksum            = true
+    use_path_style              = true
+  }
 }
 
 provider "oci" {

@@ -38,6 +38,9 @@ permissions:
 env:
   TF_VERSION: '1.5.7'
   TF_WORKING_DIR: 'terraform'
+  # S3 backend credentials (OCI Object Storage)
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   # Terraform provider variables (lowercase env var, uppercase secret)
   TF_VAR_tenancy_ocid: ${{ secrets.TF_VAR_TENANCY_OCID }}
   TF_VAR_user_ocid: ${{ secrets.TF_VAR_USER_OCID }}
@@ -62,7 +65,7 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Validate
@@ -119,7 +122,7 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Apply
@@ -145,7 +148,7 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init
         working-directory: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Destroy
