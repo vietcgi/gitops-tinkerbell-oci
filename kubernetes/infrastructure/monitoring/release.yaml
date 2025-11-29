@@ -54,6 +54,12 @@ spec:
     grafana:
       enabled: true
       adminPassword: ""  # Auto-generated, retrieve with: kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d
+      # Fix volume ownership for local-path provisioner
+      # fsGroup ensures Kubernetes sets correct volume permissions at mount time
+      podSecurityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsGroup: 472
       # Behind Cloudflare proxy - tell Grafana to use HTTPS URLs
       grafana.ini:
         server:
