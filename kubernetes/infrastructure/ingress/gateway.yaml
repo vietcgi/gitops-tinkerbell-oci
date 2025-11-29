@@ -13,6 +13,8 @@ kind: Gateway
 metadata:
   name: main-gateway
   namespace: ingress
+  annotations:
+    io.cilium/lb-ipam-pool: lb-pool
 spec:
   gatewayClassName: cilium
   listeners:
