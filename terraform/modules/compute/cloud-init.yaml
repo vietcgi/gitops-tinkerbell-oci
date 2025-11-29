@@ -1,8 +1,7 @@
 #cloud-config
 #
 # Cloud-init configuration for Metal Foundry control plane
-# This runs on first boot to prepare the system
-# K3s stack is installed separately via scripts/install-k3s-stack.sh
+# This prepares the system and optionally runs the cluster setup
 #
 
 hostname: ${hostname}
@@ -36,7 +35,7 @@ write_files:
       net.ipv4.ip_forward = 1
       vm.swappiness = 0
 
-  # K3s configuration (used when K3s is installed)
+  # K3s configuration
   - path: /etc/rancher/k3s/config.yaml
     content: |
       disable:
@@ -49,6 +48,69 @@ write_files:
       write-kubeconfig-mode: "0644"
       tls-san:
         - "${hostname}"
+        - "localhost"
+        - "127.0.0.1"
+
+  # Setup script with retry logic
+  - path: /usr/local/bin/metal-foundry-setup
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      SCRIPT_URL="https://raw.githubusercontent.com/vietcgi/gitops-metal-foundry/main/scripts/setup-cluster.sh"
+      LOG_FILE="/var/log/metal-foundry-setup.log"
+      MAX_RETRIES=5
+      RETRY_DELAY=30
+
+      log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+
+      download_with_retry() {
+        local url=$1
+        local output=$2
+        local attempt=1
+
+        while [ $attempt -le $MAX_RETRIES ]; do
+          log "Downloading setup script (attempt $attempt/$MAX_RETRIES)..."
+          if curl -sfL "$url" -o "$output" && [ -s "$output" ]; then
+            log "Download successful"
+            return 0
+          fi
+          log "Download failed, waiting ${RETRY_DELAY}s before retry..."
+          sleep $RETRY_DELAY
+          attempt=$((attempt + 1))
+        done
+
+        log "ERROR: Failed to download after $MAX_RETRIES attempts"
+        return 1
+      }
+
+      main() {
+        log "=== Metal Foundry Setup Starting ==="
+
+        # Download setup script
+        if ! download_with_retry "$SCRIPT_URL" "/tmp/setup-cluster.sh"; then
+          log "ERROR: Could not download setup script"
+          log "Manual setup required. SSH in and run:"
+          log "  curl -sfL $SCRIPT_URL | sudo bash"
+          exit 1
+        fi
+
+        chmod +x /tmp/setup-cluster.sh
+
+        # Run setup
+        log "Running setup script..."
+        if /tmp/setup-cluster.sh; then
+          log "=== Setup Complete ==="
+          echo "complete" > /var/log/metal-foundry-status
+        else
+          log "ERROR: Setup script failed"
+          echo "failed" > /var/log/metal-foundry-status
+          exit 1
+        fi
+      }
+
+      main "$@"
 
 runcmd:
   # Disable swap
@@ -72,13 +134,14 @@ runcmd:
   - iptables -A INPUT -p tcp --dport 443 -j ACCEPT
   - iptables -A INPUT -p tcp --dport 6443 -j ACCEPT
   - iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+  - iptables -A INPUT -p tcp --dport 10250 -j ACCEPT
   - iptables -A INPUT -p udp --dport 41641 -j ACCEPT
   - iptables -A INPUT -p icmp -j ACCEPT
   - iptables -A INPUT -s 10.0.0.0/8 -j ACCEPT
   - iptables -A FORWARD -j ACCEPT
   - netfilter-persistent save 2>/dev/null || true
 
-  # Start iscsid
+  # Start iscsid for storage
   - systemctl enable iscsid
   - systemctl start iscsid
 
@@ -88,18 +151,17 @@ runcmd:
   - tailscale up --auth-key="${tailscale_auth_key}" --hostname="${hostname}" --accept-routes
 %{ endif }
 
-  # Download and run setup script
-  - |
-    echo "Downloading and running Metal Foundry setup script..."
-    curl -sfL https://raw.githubusercontent.com/vietcgi/gitops-metal-foundry/main/scripts/setup-cluster.sh -o /tmp/setup-cluster.sh
-    chmod +x /tmp/setup-cluster.sh
-    /tmp/setup-cluster.sh 2>&1 | tee /var/log/metal-foundry-setup.log
-    echo "Setup complete" > /var/log/metal-foundry-init.log
+  # Run cluster setup
+  - /usr/local/bin/metal-foundry-setup
 
 final_message: |
-  Metal Foundry cluster setup complete!
-  Elapsed time: $UPTIME seconds.
+  Metal Foundry cloud-init complete. Elapsed time: $UPTIME seconds.
 
-  Check status with:
-    sudo kubectl get nodes
-    sudo flux get kustomizations
+  Check setup status:
+    cat /var/log/metal-foundry-status
+
+  View setup logs:
+    sudo tail -f /var/log/metal-foundry-setup.log
+
+  If setup failed, run manually:
+    sudo /usr/local/bin/metal-foundry-setup

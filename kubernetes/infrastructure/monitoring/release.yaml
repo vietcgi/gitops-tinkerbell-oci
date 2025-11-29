@@ -29,19 +29,18 @@ spec:
         name: prometheus-community
         namespace: flux-system
   values:
-    # Prometheus
+    # Prometheus - optimized for free tier
     prometheus:
       prometheusSpec:
-        retention: 15d
-        retentionSize: "10GB"
+        retention: 7d
+        retentionSize: "8GB"
         resources:
           requests:
             cpu: 100m
-            memory: 512Mi
+            memory: 256Mi
           limits:
-            cpu: 1000m
-            memory: 2Gi
-        # Storage for metrics
+            cpu: 500m
+            memory: 1Gi
         storageSpec:
           volumeClaimTemplate:
             spec:
@@ -49,37 +48,36 @@ spec:
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
-                  storage: 20Gi
+                  storage: 10Gi
 
-    # Grafana
+    # Grafana - optimized for free tier
     grafana:
       enabled: true
-      adminPassword: ""  # Auto-generated, get from secret
+      adminPassword: ""  # Auto-generated, retrieve with: kubectl get secret -n monitoring kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d
       persistence:
         enabled: true
         storageClassName: local-path
-        size: 5Gi
+        size: 2Gi
       resources:
         requests:
-          cpu: 50m
-          memory: 128Mi
+          cpu: 25m
+          memory: 64Mi
         limits:
-          cpu: 500m
-          memory: 512Mi
-      # Default dashboards
+          cpu: 200m
+          memory: 256Mi
       defaultDashboardsEnabled: true
       defaultDashboardsTimezone: utc
 
-    # Alertmanager
+    # Alertmanager - optimized for free tier
     alertmanager:
       alertmanagerSpec:
         resources:
           requests:
-            cpu: 10m
-            memory: 32Mi
+            cpu: 5m
+            memory: 16Mi
           limits:
-            cpu: 100m
-            memory: 128Mi
+            cpu: 50m
+            memory: 64Mi
         storage:
           volumeClaimTemplate:
             spec:
@@ -87,7 +85,7 @@ spec:
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
-                  storage: 1Gi
+                  storage: 500Mi
 
     # Node Exporter (host metrics)
     nodeExporter:

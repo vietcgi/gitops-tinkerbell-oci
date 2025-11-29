@@ -1,48 +1,57 @@
 ---
-# ClusterIssuers for Let's Encrypt
-# These are created after cert-manager is installed
+# ClusterIssuers for TLS certificates
 #
-# To configure email, create a ConfigMap before applying:
-#   kubectl create configmap cluster-config -n flux-system \
-#     --from-literal=acme-email=you@example.com \
-#     --from-literal=domain=example.com
+# Self-signed issuer works out of the box.
+# Let's Encrypt requires:
+#   1. A valid email address
+#   2. A public domain pointing to your cluster
+#   3. Port 80 accessible for HTTP-01 challenge
 #
-# Or edit the email below directly before deploying.
+# To enable Let's Encrypt:
+#   1. Update the email addresses below
+#   2. Uncomment the letsencrypt-staging issuer first
+#   3. Test with staging, then switch to letsencrypt-prod
 ---
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@metal-foundry.local
-    privateKeySecretRef:
-      name: letsencrypt-prod-account-key
-    solvers:
-      - http01:
-          ingress:
-            ingressClassName: cilium
----
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-staging
-spec:
-  acme:
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: admin@metal-foundry.local
-    privateKeySecretRef:
-      name: letsencrypt-staging-account-key
-    solvers:
-      - http01:
-          ingress:
-            ingressClassName: cilium
----
-# Self-signed issuer for internal services
+# Self-signed issuer - works immediately, good for internal services
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: selfsigned
 spec:
   selfSigned: {}
+---
+# Let's Encrypt STAGING - use this for testing (no rate limits)
+# Uncomment and update email to enable
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-staging
+# spec:
+#   acme:
+#     server: https://acme-staging-v02.api.letsencrypt.org/directory
+#     email: YOUR_EMAIL@example.com  # <-- UPDATE THIS
+#     privateKeySecretRef:
+#       name: letsencrypt-staging-account-key
+#     solvers:
+#       - http01:
+#           ingress:
+#             ingressClassName: cilium
+---
+# Let's Encrypt PRODUCTION - use after staging works
+# Uncomment and update email to enable
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-prod
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: YOUR_EMAIL@example.com  # <-- UPDATE THIS
+#     privateKeySecretRef:
+#       name: letsencrypt-prod-account-key
+#     solvers:
+#       - http01:
+#           ingress:
+#             ingressClassName: cilium
