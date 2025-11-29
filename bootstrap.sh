@@ -228,23 +228,41 @@ install_dependencies() {
 #=============================================================================
 
 validate_auth() {
-    # Check OCI CLI config exists
-    log_info "Checking OCI CLI configuration..."
+    # Check OCI CLI - try session token first, then config file
+    log_info "Checking OCI CLI authentication..."
 
     OCI_CONFIG_FILE="${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
+    OCI_SESSION_DIR="$HOME/.oci/sessions"
 
-    if [[ ! -f "$OCI_CONFIG_FILE" ]]; then
-        log_warn "OCI CLI not configured (no config file found)"
+    # Check if already authenticated (config or session)
+    if oci iam region list --auth security_token &> /dev/null 2>&1; then
+        log_success "OCI CLI authenticated (session token)"
+    elif [[ -f "$OCI_CONFIG_FILE" ]] && oci iam region list &> /dev/null 2>&1; then
+        log_success "OCI CLI authenticated (API key)"
+    else
+        log_warn "OCI CLI not authenticated"
         echo ""
-        log_info "Running OCI CLI setup..."
-        oci setup config
-    fi
+        echo -e "${BOLD}Opening browser for OCI login...${NC}"
+        echo ""
 
-    if [[ ! -f "$OCI_CONFIG_FILE" ]]; then
-        log_error "OCI CLI configuration failed - no config file"
-        exit 1
+        # Get region from user
+        read -r -p "Enter your OCI region (e.g., us-sanjose-1, us-ashburn-1): " OCI_REGION_INPUT
+
+        if [[ -z "$OCI_REGION_INPUT" ]]; then
+            log_error "Region is required"
+            exit 1
+        fi
+
+        # Browser-based authentication (much easier than manual setup)
+        log_info "Opening browser for authentication..."
+        oci session authenticate --region "$OCI_REGION_INPUT"
+
+        if ! oci iam region list --auth security_token &> /dev/null 2>&1; then
+            log_error "OCI authentication failed"
+            exit 1
+        fi
+        log_success "OCI CLI authenticated"
     fi
-    log_success "OCI CLI configured"
 
     # Check GitHub CLI authentication
     log_info "Checking GitHub CLI authentication..."
@@ -252,8 +270,8 @@ validate_auth() {
     if ! gh auth status &> /dev/null; then
         log_warn "GitHub CLI not authenticated"
         echo ""
-        log_info "Running GitHub CLI login..."
-        gh auth login
+        log_info "Opening browser for GitHub login..."
+        gh auth login --web
     fi
 
     if ! gh auth status &> /dev/null; then
@@ -270,19 +288,14 @@ validate_auth() {
 get_oci_config() {
     log_info "Reading OCI configuration..."
 
-    # Read from OCI CLI config file
     OCI_CONFIG_FILE="${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
-    OCI_PROFILE="${OCI_CLI_PROFILE:-DEFAULT}"
 
-    if [[ ! -f "$OCI_CONFIG_FILE" ]]; then
-        log_error "OCI config file not found: $OCI_CONFIG_FILE"
-        exit 1
-    fi
-
-    # Parse config file for the profile
+    # Helper to parse config file
     parse_oci_config() {
-        local key=$1
-        awk -v profile="[$OCI_PROFILE]" -v key="$key" '
+        local file=$1
+        local profile=$2
+        local key=$3
+        awk -v profile="[$profile]" -v key="$key" '
             $0 == profile { found=1; next }
             /^\[/ { found=0 }
             found && $0 ~ "^"key"[[:space:]]*=" {
@@ -290,25 +303,48 @@ get_oci_config() {
                 print
                 exit
             }
-        ' "$OCI_CONFIG_FILE"
+        ' "$file"
     }
 
-    OCI_USER=$(parse_oci_config "user")
-    OCI_TENANCY=$(parse_oci_config "tenancy")
-    OCI_REGION=$(parse_oci_config "region")
-    OCI_KEY_FILE=$(parse_oci_config "key_file")
+    # Try session token config first
+    SESSION_CONFIG="$HOME/.oci/sessions/DEFAULT/oci_api_key_config"
+    if [[ -f "$SESSION_CONFIG" ]]; then
+        log_info "Using session token authentication"
+        USE_SESSION_TOKEN=true
 
-    # Expand ~ in key file path
-    OCI_KEY_FILE="${OCI_KEY_FILE/#\~/$HOME}"
+        OCI_TENANCY=$(parse_oci_config "$SESSION_CONFIG" "DEFAULT" "tenancy")
+        OCI_REGION=$(parse_oci_config "$SESSION_CONFIG" "DEFAULT" "region")
 
-    if [[ -z "$OCI_USER" || -z "$OCI_TENANCY" || -z "$OCI_REGION" ]]; then
-        log_error "Could not parse OCI config. Check your ~/.oci/config"
+        # Get user OCID from the session
+        OCI_USER=$(oci iam user list --auth security_token --limit 1 --query 'data[0].id' --raw-output 2>/dev/null || echo "")
+
+        if [[ -z "$OCI_USER" ]]; then
+            # Try to get from whoami
+            OCI_USER=$(oci session whoami --auth security_token 2>/dev/null | jq -r '.data."user-id" // empty' || echo "")
+        fi
+    elif [[ -f "$OCI_CONFIG_FILE" ]]; then
+        log_info "Using API key authentication"
+        USE_SESSION_TOKEN=false
+
+        OCI_PROFILE="${OCI_CLI_PROFILE:-DEFAULT}"
+        OCI_USER=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "user")
+        OCI_TENANCY=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "tenancy")
+        OCI_REGION=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "region")
+        OCI_KEY_FILE=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "key_file")
+        OCI_KEY_FILE="${OCI_KEY_FILE/#\~/$HOME}"
+    else
+        log_error "No OCI configuration found"
         exit 1
     fi
 
-    log_success "User: ${OCI_USER:0:30}..."
+    if [[ -z "$OCI_TENANCY" || -z "$OCI_REGION" ]]; then
+        log_error "Could not read OCI config"
+        exit 1
+    fi
+
     log_success "Tenancy: ${OCI_TENANCY:0:30}..."
     log_success "Region: $OCI_REGION"
+    [[ -n "$OCI_USER" ]] && log_success "User: ${OCI_USER:0:30}..."
 }
 
 #=============================================================================
@@ -363,6 +399,23 @@ create_api_key() {
     API_KEY_FILE="$API_KEY_DIR/oci_api_key.pem"
     API_KEY_PUBLIC="$API_KEY_DIR/oci_api_key_public.pem"
 
+    # Set auth flag based on session or API key
+    AUTH_FLAG=""
+    if [[ "${USE_SESSION_TOKEN:-false}" == "true" ]]; then
+        AUTH_FLAG="--auth security_token"
+    fi
+
+    # Get user OCID if we don't have it
+    if [[ -z "$OCI_USER" ]]; then
+        log_info "Getting user OCID..."
+        OCI_USER=$(oci iam user list $AUTH_FLAG --limit 1 --query 'data[0].id' --raw-output 2>/dev/null)
+    fi
+
+    if [[ -z "$OCI_USER" ]]; then
+        log_error "Could not determine user OCID"
+        exit 1
+    fi
+
     # Check if we already have a key
     if [[ -f "$API_KEY_FILE" ]]; then
         log_info "Found existing API key: $API_KEY_FILE"
@@ -377,7 +430,7 @@ create_api_key() {
     fi
 
     # Create new key
-    log_info "Generating new API key..."
+    log_info "Generating new API key for GitHub Actions..."
     mkdir -p "$API_KEY_DIR"
     chmod 700 "$API_KEY_DIR"
 
@@ -392,13 +445,13 @@ create_api_key() {
     OCI_FINGERPRINT=$(openssl rsa -pubout -in "$API_KEY_FILE" 2>/dev/null | openssl md5 -c | awk '{print $2}')
     OCI_KEY_CONTENT=$(cat "$API_KEY_FILE")
 
-    log_success "Generated API key with fingerprint: $OCI_FINGERPRINT"
+    log_success "Generated API key: $OCI_FINGERPRINT"
 
     # Upload public key to OCI
-    log_info "Uploading public key to OCI..."
+    log_info "Uploading API key to OCI..."
 
     # Check if key with this fingerprint already exists
-    EXISTING_KEY=$(oci iam user api-key list \
+    EXISTING_KEY=$(oci iam user api-key list $AUTH_FLAG \
         --user-id "$OCI_USER" \
         --query "data[?fingerprint=='$OCI_FINGERPRINT'].fingerprint | [0]" \
         --raw-output 2>/dev/null || echo "")
@@ -406,7 +459,7 @@ create_api_key() {
     if [[ -n "$EXISTING_KEY" && "$EXISTING_KEY" != "null" ]]; then
         log_info "API key already registered in OCI"
     else
-        oci iam user api-key upload \
+        oci iam user api-key upload $AUTH_FLAG \
             --user-id "$OCI_USER" \
             --key-file "$API_KEY_PUBLIC" > /dev/null 2>&1 && \
             log_success "Uploaded API key to OCI" || \
@@ -449,7 +502,13 @@ create_compartment() {
 
     PROJECT_NAME="${PROJECT_NAME:-metal-foundry}"
 
-    EXISTING=$(oci iam compartment list \
+    # Set auth flag based on session or API key
+    AUTH_FLAG=""
+    if [[ "${USE_SESSION_TOKEN:-false}" == "true" ]]; then
+        AUTH_FLAG="--auth security_token"
+    fi
+
+    EXISTING=$(oci iam compartment list $AUTH_FLAG \
         --compartment-id "$OCI_TENANCY" \
         --query "data[?name=='${PROJECT_NAME}' && \"lifecycle-state\"=='ACTIVE'].id | [0]" \
         --raw-output 2>/dev/null || echo "")
@@ -459,7 +518,7 @@ create_compartment() {
         OCI_COMPARTMENT="$EXISTING"
     else
         log_info "Creating compartment: $PROJECT_NAME"
-        OCI_COMPARTMENT=$(oci iam compartment create \
+        OCI_COMPARTMENT=$(oci iam compartment create $AUTH_FLAG \
             --compartment-id "$OCI_TENANCY" \
             --name "$PROJECT_NAME" \
             --description "GitOps Metal Foundry - Bare Metal Cloud" \
