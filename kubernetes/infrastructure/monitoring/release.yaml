@@ -112,16 +112,38 @@ spec:
     kubeProxy:
       enabled: false  # Using Cilium instead
 ---
-# HTTPRoute for Grafana (Gateway API)
+# HTTP Route - Redirect to HTTPS
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: grafana-route
+  name: grafana-route-http
   namespace: monitoring
 spec:
   parentRefs:
     - name: main-gateway
       namespace: ingress
+      sectionName: http-grafana
+  hostnames:
+    - grafana.qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# HTTPS Route - Forward to Backend
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana-route-https
+  namespace: monitoring
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-grafana
   hostnames:
     - grafana.qualityspace.com
   rules:
