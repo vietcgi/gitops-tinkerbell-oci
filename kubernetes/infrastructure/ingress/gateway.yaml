@@ -40,3 +40,13 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: grafana-tls
+    # HTTPS listener for Harbor
+    - name: https-harbor
+      protocol: HTTPS
+      port: 443
+      hostname: harbor.qualityspace.com
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: harbor-tls
+            namespace: harbor

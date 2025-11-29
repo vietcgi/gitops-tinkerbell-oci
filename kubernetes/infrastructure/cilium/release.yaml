@@ -24,7 +24,7 @@ spec:
 
     # Enable Cilium Ingress Controller (for backwards compatibility)
     ingressController:
-      enabled: true
+      enabled: false
       loadbalancerMode: shared
       default: true
       # Use hostNetwork for direct port 80/443 binding
