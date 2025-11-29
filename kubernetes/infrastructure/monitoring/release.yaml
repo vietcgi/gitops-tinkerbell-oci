@@ -13,7 +13,7 @@ metadata:
 # - Node Exporter (host metrics)
 # - Kube State Metrics (K8s metrics)
 #
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: kube-prometheus-stack

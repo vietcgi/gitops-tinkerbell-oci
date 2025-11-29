@@ -1,5 +1,5 @@
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: cilium
@@ -8,7 +8,7 @@ spec:
   interval: 1h
   url: https://helm.cilium.io/
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: jetstack
@@ -17,7 +17,7 @@ spec:
   interval: 1h
   url: https://charts.jetstack.io
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: sealed-secrets
@@ -26,19 +26,7 @@ spec:
   interval: 1h
   url: https://bitnami-labs.github.io/sealed-secrets
 ---
-# Tinkerbell moved to OCI registry (old charts repo deprecated)
-apiVersion: source.toolkit.fluxcd.io/v1beta2
-kind: OCIRepository
-metadata:
-  name: tinkerbell
-  namespace: flux-system
-spec:
-  interval: 1h
-  url: oci://ghcr.io/tinkerbell/charts
-  ref:
-    tag: v0.21.0  # Latest stable (Nov 2025)
----
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: prometheus-community
@@ -47,7 +35,7 @@ spec:
   interval: 1h
   url: https://prometheus-community.github.io/helm-charts
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: victoria-metrics
@@ -56,7 +44,7 @@ spec:
   interval: 1h
   url: https://victoriametrics.github.io/helm-charts/
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: tailscale

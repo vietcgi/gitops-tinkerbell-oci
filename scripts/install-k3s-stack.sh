@@ -55,9 +55,9 @@ else
 fi
 
 # Install Cilium CNI if not present
-if ! kubectl get ns kube-system -o jsonpath='{.metadata.labels}' | grep -q cilium 2>/dev/null; then
+if ! kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent --no-headers 2>/dev/null | grep -q Running; then
     echo "Installing Cilium..."
-    cilium install
+    cilium install --set kubeProxyReplacement=true
 else
     echo "Cilium already installed"
 fi
