@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/local"
       version = ">= 2.5.2" # Nov 2025
     }
+    null = {
+      source  = "hashicorp/null"
+      version = ">= 3.2.0"
+    }
   }
 
   # State stored in OCI Object Storage (S3-compatible)

@@ -77,6 +77,17 @@ resource "oci_core_instance" "control_plane" {
       source_details[0].source_id, # Ignore image updates
       metadata,                    # Ignore cloud-init changes (run manually if needed)
     ]
+    # Boot volume size change forces replacement
+    replace_triggered_by = [
+      null_resource.boot_volume_size_trigger
+    ]
+  }
+}
+
+# Trigger instance replacement when boot volume size changes
+resource "null_resource" "boot_volume_size_trigger" {
+  triggers = {
+    boot_volume_size = var.boot_volume_size_gb
   }
 }
 
