@@ -31,8 +31,8 @@ spec:
     # Stack component configuration
     stack:
       enabled: true
-      # TODO: CHANGE THIS to your Tinkerbell public IP or domain
-      publicIP: ""
+      # Tinkerbell public endpoint
+      publicIP: "vietcgi.qualityspace.com"
 
       # Hook (in-memory OS for provisioning)
       hook:
@@ -78,8 +78,7 @@ spec:
       # HTTP mode for cloud/remote environments
       http:
         enabled: true
-        # TODO: CHANGE THIS to your Tinkerbell domain
-        osieUrl: "http://tinkerbell.CHANGE_ME.com/misc/osie"
+        osieUrl: "http://tinkerbell.qualityspace.com/misc/osie"
 
     # Rufio (BMC controller) - optional
     rufio:
@@ -89,9 +88,6 @@ spec:
     service:
       type: LoadBalancer
 ---
-# ============================================================================
-# IMPORTANT: Update the domain below before deploying!
-# ============================================================================
 # Ingress for Tinkerbell HTTP endpoints
 # This exposes the boot endpoints publicly for remote bare metal
 apiVersion: networking.k8s.io/v1
@@ -104,8 +100,7 @@ metadata:
 spec:
   ingressClassName: cilium
   rules:
-    # TODO: CHANGE THIS to your actual domain
-    - host: tinkerbell.CHANGE_ME.com
+    - host: tinkerbell.qualityspace.com
       http:
         paths:
           - path: /
@@ -117,6 +112,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        # TODO: CHANGE THIS to your actual domain
-        - tinkerbell.CHANGE_ME.com
+        - tinkerbell.qualityspace.com
       secretName: tinkerbell-tls
