@@ -29,3 +29,6 @@ spec:
       enabled: true
       size: 10Gi
       storageClass: local-path
+    metaMonitoring:
+      serviceMonitor:
+        enabled: true

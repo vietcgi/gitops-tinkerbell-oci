@@ -53,3 +53,7 @@ spec:
         trivy:
           storageClass: local-path
           size: 5Gi
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true

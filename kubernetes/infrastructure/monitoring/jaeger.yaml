@@ -23,6 +23,8 @@ spec:
       enabled: true
       ingress:
         enabled: false
+      serviceMonitor:
+        enabled: true
     storage:
       type: memory
     agent:

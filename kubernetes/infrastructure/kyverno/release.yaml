@@ -28,3 +28,5 @@ spec:
       replicas: 1
     reportsController:
       replicas: 1
+    serviceMonitor:
+      enabled: true

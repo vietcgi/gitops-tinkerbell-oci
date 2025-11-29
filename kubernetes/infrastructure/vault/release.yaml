@@ -29,3 +29,6 @@ spec:
     ui:
       enabled: true
       serviceType: ClusterIP
+    server:
+      serviceMonitor:
+        enabled: true

@@ -28,3 +28,6 @@ spec:
       - kube-system
       - flux-system
       - gatekeeper-system
+    serviceMonitor:
+      enabled: true
+      scrapeInterval: 30s
