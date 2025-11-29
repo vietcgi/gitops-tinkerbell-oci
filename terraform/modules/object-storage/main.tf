@@ -35,10 +35,13 @@ resource "oci_objectstorage_bucket" "state" {
 }
 
 #-----------------------------------------------------------------------------
-# Lifecycle Policy - Clean up old versions
+# Lifecycle Policy - Clean up old versions (optional)
+# Requires IAM policy: Allow service objectstorage-<region> to manage object-family in compartment id <compartment>
 #-----------------------------------------------------------------------------
 
 resource "oci_objectstorage_object_lifecycle_policy" "state" {
+  count = var.create_lifecycle_policy ? 1 : 0
+
   namespace = data.oci_objectstorage_namespace.ns.namespace
   bucket    = oci_objectstorage_bucket.state.name
 
