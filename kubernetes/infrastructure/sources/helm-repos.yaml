@@ -52,3 +52,15 @@ metadata:
 spec:
   interval: 1h
   url: https://pkgs.tailscale.com/helmcharts
+---
+# Tinkerbell OCI Repository for bare metal provisioning
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: tinkerbell
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/tinkerbell/charts
+  ref:
+    semver: ">=0.21.0"
