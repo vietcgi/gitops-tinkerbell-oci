@@ -75,7 +75,7 @@ resource "oci_core_instance" "control_plane" {
   lifecycle {
     ignore_changes = [
       source_details[0].source_id, # Ignore image updates
-      metadata,                     # Ignore cloud-init changes (run manually if needed)
+      metadata,                    # Ignore cloud-init changes (run manually if needed)
     ]
   }
 }

@@ -96,7 +96,7 @@ variable "control_plane_memory_gb" {
 variable "boot_volume_size_gb" {
   description = "Boot volume size in GB (free tier: 200GB total)"
   type        = number
-  default     = 200  # Use full free tier allowance for single instance
+  default     = 200 # Use full free tier allowance for single instance
 
   validation {
     condition     = var.boot_volume_size_gb >= 47 && var.boot_volume_size_gb <= 200

@@ -78,14 +78,14 @@ module "vcn" {
 module "control_plane" {
   source = "./modules/compute"
 
-  compartment_id      = var.compartment_ocid
+  compartment_id = var.compartment_ocid
   # Use modulo to handle regions with fewer ADs than requested index
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[
     var.availability_domain_index % length(data.oci_identity_availability_domains.ads.availability_domains)
   ].name
-  project_name        = var.project_name
-  subnet_id           = module.vcn.public_subnet_id
-  nsg_ids             = [module.vcn.control_plane_nsg_id]
+  project_name = var.project_name
+  subnet_id    = module.vcn.public_subnet_id
+  nsg_ids      = [module.vcn.control_plane_nsg_id]
 
   # Instance configuration
   shape          = var.control_plane_shape

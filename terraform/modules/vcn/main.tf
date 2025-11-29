@@ -184,6 +184,19 @@ resource "oci_core_security_list" "public" {
     }
   }
 
+  # Ingress - Kubernetes NodePorts
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = "0.0.0.0/0"
+    stateless   = false
+    description = "Kubernetes NodePort services"
+
+    tcp_options {
+      min = 30000
+      max = 32767
+    }
+  }
+
   freeform_tags = var.tags
 }
 
@@ -276,6 +289,67 @@ resource "oci_core_network_security_group_security_rule" "control_plane_k8s_api"
     destination_port_range {
       min = 6443
       max = 6443
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "control_plane_http" {
+  network_security_group_id = oci_core_network_security_group.control_plane.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  description               = "HTTP - for ingress and Let's Encrypt challenges"
+
+  tcp_options {
+    destination_port_range {
+      min = 80
+      max = 80
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "control_plane_nodeports" {
+  network_security_group_id = oci_core_network_security_group.control_plane.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  description               = "Kubernetes NodePort services"
+
+  tcp_options {
+    destination_port_range {
+      min = 30000
+      max = 32767
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "control_plane_icmp" {
+  network_security_group_id = oci_core_network_security_group.control_plane.id
+  direction                 = "INGRESS"
+  protocol                  = "1"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  description               = "ICMP ping for diagnostics"
+
+  icmp_options {
+    type = 8
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "control_plane_tailscale" {
+  network_security_group_id = oci_core_network_security_group.control_plane.id
+  direction                 = "INGRESS"
+  protocol                  = "17"
+  source                    = "0.0.0.0/0"
+  source_type               = "CIDR_BLOCK"
+  description               = "Tailscale/WireGuard UDP"
+
+  udp_options {
+    destination_port_range {
+      min = 41641
+      max = 41641
     }
   }
 }
