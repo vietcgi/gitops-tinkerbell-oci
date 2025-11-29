@@ -69,14 +69,13 @@ else
     log "K3s already installed"
 fi
 
-# Wait for K3s
-log "Waiting for K3s to be ready..."
+# Wait for K3s API to be available (node won't be Ready until CNI is installed)
+log "Waiting for K3s API to be available..."
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 until kubectl get nodes &>/dev/null; do
     sleep 5
 done
-kubectl wait --for=condition=ready node --all --timeout=120s
-log "K3s is ready"
+log "K3s API is ready (node will become Ready after CNI installation)"
 
 #-----------------------------------------------------------------------------
 # Step 2: Install Helm
