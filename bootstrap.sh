@@ -136,16 +136,23 @@ get_config() {
 
     # GitHub repo
     echo ""
-    log_info "GitHub repository for GitOps (e.g., vietcgi/gitops-metal-foundry)"
-    read -r -p "Enter GitHub owner/repo: " GITHUB_REPO_FULL < /dev/tty
+    log_info "GitHub repository for GitOps"
+    read -r -p "Enter GitHub repo (owner/repo or full URL): " GITHUB_REPO_FULL < /dev/tty
 
     if [[ -z "$GITHUB_REPO_FULL" ]]; then
         log_error "GitHub repo is required for GitOps"
         exit 1
     fi
 
+    # Handle both formats: "owner/repo" or "https://github.com/owner/repo"
+    GITHUB_REPO_FULL=$(echo "$GITHUB_REPO_FULL" | sed 's|https://github.com/||' | sed 's|\.git$||' | sed 's|/$||')
     GITHUB_OWNER=$(echo "$GITHUB_REPO_FULL" | cut -d'/' -f1)
     GITHUB_REPO=$(echo "$GITHUB_REPO_FULL" | cut -d'/' -f2)
+
+    if [[ -z "$GITHUB_OWNER" || -z "$GITHUB_REPO" ]]; then
+        log_error "Invalid repo format. Use: owner/repo or https://github.com/owner/repo"
+        exit 1
+    fi
 
     log_info "GitHub Owner: $GITHUB_OWNER"
     log_info "GitHub Repo: $GITHUB_REPO"
