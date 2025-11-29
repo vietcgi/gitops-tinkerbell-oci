@@ -47,6 +47,11 @@ permissions:
   contents: read
   pull-requests: write
 
+# Prevent concurrent runs - only one terraform operation at a time
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   TF_VERSION: '1.5.7'
   TF_WORKING_DIR: 'terraform'

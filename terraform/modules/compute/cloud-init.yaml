@@ -96,12 +96,75 @@ runcmd:
   - tailscale up --auth-key="${tailscale_auth_key}" --hostname="${hostname}" --accept-routes
 %{ endif }
 
-  # Mark system as ready for K3s installation
-  # K3s and Cilium are installed by bootstrap.sh after cloud-init completes
-  - echo "Cloud-init complete. Ready for K3s installation." > /var/log/metal-foundry-init.log
+  # Install K3s (latest stable, without flannel - we'll use Cilium)
+  - |
+    echo "Installing K3s..." >> /var/log/metal-foundry-init.log
+    curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable INSTALL_K3S_EXEC="server" sh -
+
+  # Wait for K3s to be ready
+  - |
+    echo "Waiting for K3s..." >> /var/log/metal-foundry-init.log
+    until kubectl get nodes 2>/dev/null; do sleep 5; done
+
+  # Install Helm
+  - |
+    echo "Installing Helm..." >> /var/log/metal-foundry-init.log
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+  # Install Cilium CLI
+  - |
+    echo "Installing Cilium CLI..." >> /var/log/metal-foundry-init.log
+    CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
+    CLI_ARCH=amd64
+    if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
+    curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz
+    tar xzvf cilium-linux-${CLI_ARCH}.tar.gz -C /usr/local/bin
+    rm cilium-linux-${CLI_ARCH}.tar.gz
+
+  # Install Cilium CNI (latest stable)
+  - |
+    echo "Installing Cilium..." >> /var/log/metal-foundry-init.log
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    cilium install
+
+  # Wait for Cilium to be ready
+  - |
+    echo "Waiting for Cilium..." >> /var/log/metal-foundry-init.log
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    cilium status --wait
+
+  # Install Flux CLI (latest)
+  - |
+    echo "Installing Flux CLI..." >> /var/log/metal-foundry-init.log
+    curl -s https://fluxcd.io/install.sh | bash
+
+  # Install kubectl krew plugin manager
+  - |
+    echo "Installing krew..." >> /var/log/metal-foundry-init.log
+    (
+      set -x; cd "$(mktemp -d)" &&
+      OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+      ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')" &&
+      KREW="krew-${OS}_${ARCH}" &&
+      curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+      tar zxvf "${KREW}.tar.gz" &&
+      ./"${KREW}" install krew
+    )
+    echo 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' >> /root/.bashrc
+    echo 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' >> /home/ubuntu/.bashrc
+
+  # Make kubeconfig accessible to ubuntu user
+  - |
+    mkdir -p /home/ubuntu/.kube
+    cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
+    chown -R ubuntu:ubuntu /home/ubuntu/.kube
+    echo 'export KUBECONFIG=/home/ubuntu/.kube/config' >> /home/ubuntu/.bashrc
+
+  # Mark complete
+  - echo "K3s, Cilium, Flux installed successfully!" >> /var/log/metal-foundry-init.log
 
 # Final message
 final_message: |
-  Metal Foundry control plane cloud-init complete!
-  System is ready for K3s + Cilium installation.
+  Metal Foundry control plane ready!
+  K3s + Cilium installed.
   Elapsed time: $UPTIME seconds.
