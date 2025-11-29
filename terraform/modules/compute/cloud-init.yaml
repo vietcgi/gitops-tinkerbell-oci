@@ -88,10 +88,18 @@ runcmd:
   - tailscale up --auth-key="${tailscale_auth_key}" --hostname="${hostname}" --accept-routes
 %{ endif }
 
-  # Mark ready
-  - echo "Cloud-init complete. Run scripts/install-k3s-stack.sh to install K3s stack." > /var/log/metal-foundry-init.log
+  # Download and run setup script
+  - |
+    echo "Downloading and running Metal Foundry setup script..."
+    curl -sfL https://raw.githubusercontent.com/vietcgi/gitops-metal-foundry/main/scripts/setup-cluster.sh -o /tmp/setup-cluster.sh
+    chmod +x /tmp/setup-cluster.sh
+    /tmp/setup-cluster.sh 2>&1 | tee /var/log/metal-foundry-setup.log
+    echo "Setup complete" > /var/log/metal-foundry-init.log
 
 final_message: |
-  Metal Foundry control plane ready for K3s installation.
-  SSH in and run: curl -sL <repo>/scripts/install-k3s-stack.sh | sudo bash
+  Metal Foundry cluster setup complete!
   Elapsed time: $UPTIME seconds.
+
+  Check status with:
+    sudo kubectl get nodes
+    sudo flux get kustomizations
