@@ -117,3 +117,12 @@ metadata:
 spec:
   interval: 1h
   url: https://jaegertracing.github.io/helm-charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: harbor
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://helm.goharbor.io
