@@ -10,10 +10,8 @@
 name: Terraform
 
 on:
-  schedule:
-    # Retry every 5 minutes for ARM capacity
-    # Disable this after instance is created!
-    - cron: '*/5 * * * *'
+  # schedule:
+  #   - cron: '*/5 * * * *'  # Disabled - ARM instance created
   pull_request:
     branches: [main]
     paths:
