@@ -229,15 +229,12 @@ install_dependencies() {
 
 validate_auth() {
     OCI_CONFIG_FILE="${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
-    SESSION_CONFIG="$HOME/.oci/sessions/DEFAULT/oci_api_key_config"
 
-    # Check if already authenticated (just check files exist, no API calls)
-    if [[ -f "$SESSION_CONFIG" ]]; then
-        log_success "OCI CLI authenticated (session token)"
-    elif [[ -f "$OCI_CONFIG_FILE" ]]; then
-        log_success "OCI CLI authenticated (API key)"
+    # Check if already authenticated (just check config file exists)
+    if [[ -f "$OCI_CONFIG_FILE" ]]; then
+        log_success "OCI CLI configured"
     else
-        log_warn "OCI CLI not authenticated"
+        log_warn "OCI CLI not configured"
         echo ""
         echo -e "${BOLD}Opening browser for OCI login...${NC}"
         echo ""
@@ -254,11 +251,11 @@ validate_auth() {
         log_info "Opening browser for authentication..."
         oci session authenticate --region "$OCI_REGION_INPUT"
 
-        if [[ ! -f "$HOME/.oci/sessions/DEFAULT/oci_api_key_config" ]]; then
+        if [[ ! -f "$OCI_CONFIG_FILE" ]]; then
             log_error "OCI authentication failed"
             exit 1
         fi
-        log_success "OCI CLI authenticated"
+        log_success "OCI CLI configured"
     fi
 
     # Check GitHub CLI authentication
@@ -286,13 +283,17 @@ get_oci_config() {
     log_info "Reading OCI configuration..."
 
     OCI_CONFIG_FILE="${OCI_CLI_CONFIG_FILE:-$HOME/.oci/config}"
+    OCI_PROFILE="${OCI_CLI_PROFILE:-DEFAULT}"
+
+    if [[ ! -f "$OCI_CONFIG_FILE" ]]; then
+        log_error "No OCI configuration found"
+        exit 1
+    fi
 
     # Helper to parse config file
     parse_oci_config() {
-        local file=$1
-        local profile=$2
-        local key=$3
-        awk -v profile="[$profile]" -v key="$key" '
+        local key=$1
+        awk -v profile="[$OCI_PROFILE]" -v key="$key" '
             $0 == profile { found=1; next }
             /^\[/ { found=0 }
             found && $0 ~ "^"key"[[:space:]]*=" {
@@ -300,48 +301,33 @@ get_oci_config() {
                 print
                 exit
             }
-        ' "$file"
+        ' "$OCI_CONFIG_FILE"
     }
 
-    # Try session token config first
-    SESSION_CONFIG="$HOME/.oci/sessions/DEFAULT/oci_api_key_config"
-    if [[ -f "$SESSION_CONFIG" ]]; then
+    # Read config values
+    OCI_TENANCY=$(parse_oci_config "tenancy")
+    OCI_REGION=$(parse_oci_config "region")
+    OCI_USER=$(parse_oci_config "user")
+    SECURITY_TOKEN_FILE=$(parse_oci_config "security_token_file")
+
+    # Determine auth type
+    if [[ -n "$SECURITY_TOKEN_FILE" ]]; then
         log_info "Using session token authentication"
         USE_SESSION_TOKEN=true
-
-        OCI_TENANCY=$(parse_oci_config "$SESSION_CONFIG" "DEFAULT" "tenancy")
-        OCI_REGION=$(parse_oci_config "$SESSION_CONFIG" "DEFAULT" "region")
-
-        # Get user OCID from the session
-        OCI_USER=$(oci iam user list --auth security_token --limit 1 --query 'data[0].id' --raw-output 2>/dev/null || echo "")
-
-        if [[ -z "$OCI_USER" ]]; then
-            # Try to get from whoami
-            OCI_USER=$(oci session whoami --auth security_token 2>/dev/null | jq -r '.data."user-id" // empty' || echo "")
-        fi
-    elif [[ -f "$OCI_CONFIG_FILE" ]]; then
+    else
         log_info "Using API key authentication"
         USE_SESSION_TOKEN=false
-
-        OCI_PROFILE="${OCI_CLI_PROFILE:-DEFAULT}"
-        OCI_USER=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "user")
-        OCI_TENANCY=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "tenancy")
-        OCI_REGION=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "region")
-        OCI_KEY_FILE=$(parse_oci_config "$OCI_CONFIG_FILE" "$OCI_PROFILE" "key_file")
+        OCI_KEY_FILE=$(parse_oci_config "key_file")
         OCI_KEY_FILE="${OCI_KEY_FILE/#\~/$HOME}"
-    else
-        log_error "No OCI configuration found"
-        exit 1
     fi
 
     if [[ -z "$OCI_TENANCY" || -z "$OCI_REGION" ]]; then
-        log_error "Could not read OCI config"
+        log_error "Could not read OCI config (tenancy/region missing)"
         exit 1
     fi
 
-    log_success "Tenancy: ${OCI_TENANCY:0:30}..."
+    log_success "Tenancy: ${OCI_TENANCY:0:40}..."
     log_success "Region: $OCI_REGION"
-    [[ -n "$OCI_USER" ]] && log_success "User: ${OCI_USER:0:30}..."
 }
 
 #=============================================================================
