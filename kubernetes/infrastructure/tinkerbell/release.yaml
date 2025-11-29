@@ -102,14 +102,12 @@ spec:
     - tinkerbell.qualityspace.com
 ---
 # Gateway API - Cilium Gateway for HTTP/HTTPS traffic
-# Uses hostNetwork to bind directly to ports 80 and 443
+# Uses LoadBalancer mode with IP from CiliumLoadBalancerIPPool (lb-pool)
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: tinkerbell-gateway
   namespace: tinkerbell
-  annotations:
-    io.cilium/host-network: "true"
 spec:
   gatewayClassName: cilium
   listeners:
