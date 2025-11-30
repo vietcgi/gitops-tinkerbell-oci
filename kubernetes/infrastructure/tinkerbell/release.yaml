@@ -98,22 +98,8 @@ spec:
       kubevip:
         enabled: false
 ---
-# TLS Certificate for Tinkerbell
-# Required for secure iPXE boot and API access
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: tinkerbell-tls
-  namespace: tink-system
-spec:
-  secretName: tinkerbell-tls
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-    - tinkerbell.qualityspace.com
----
 # HTTPRoute for Tinkerbell services
+# TLS handled by wildcard cert in ingress namespace
 # Routes traffic from main-gateway to Tinkerbell
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -124,7 +110,7 @@ spec:
   parentRefs:
     - name: main-gateway
       namespace: ingress
-      sectionName: https-tinkerbell
+      sectionName: https
   hostnames:
     - tinkerbell.qualityspace.com
   rules:

@@ -5,8 +5,24 @@ kind: Namespace
 metadata:
   name: ingress
 ---
+# Wildcard TLS Certificate for *.qualityspace.com
+# One cert covers all subdomains, avoids per-domain rate limits
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-qualityspace-tls
+  namespace: ingress
+spec:
+  secretName: wildcard-qualityspace-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.qualityspace.com"
+    - "qualityspace.com"
+---
 # Shared Gateway for all services
-# TLS certificates via Let's Encrypt with HTTP-01 challenge
+# Uses wildcard cert for all *.qualityspace.com subdomains
 # Using hostNetwork mode - binds directly to host ports 80/443
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -23,42 +39,15 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
-    # HTTPS listener for Grafana
-    - name: https-grafana
+    # HTTPS listener - wildcard cert covers all subdomains
+    - name: https
       protocol: HTTPS
       port: 443
-      hostname: grafana.qualityspace.com
+      hostname: "*.qualityspace.com"
       allowedRoutes:
         namespaces:
           from: All
       tls:
         mode: Terminate
         certificateRefs:
-          - group: ""
-            kind: Secret
-            name: grafana-tls
-    # HTTPS listener for Tinkerbell
-    # Used for iPXE chainloading, HookOS downloads, and API
-    - name: https-tinkerbell
-      protocol: HTTPS
-      port: 443
-      hostname: tinkerbell.qualityspace.com
-      allowedRoutes:
-        namespaces:
-          from: All
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: tinkerbell-tls
-            namespace: tink-system
-    # Harbor listener disabled - suspended due to ARM64 incompatibility
-    # Re-enable when Harbor is running on x86_64
-    # - name: https-harbor
-    #   protocol: HTTPS
-    #   port: 443
-    #   hostname: harbor.qualityspace.com
-    #   tls:
-    #     mode: Terminate
-    #     certificateRefs:
-    #       - name: harbor-tls
-    #         namespace: harbor
+          - name: wildcard-qualityspace-tls

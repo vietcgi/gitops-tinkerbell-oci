@@ -136,7 +136,7 @@ spec:
   parentRefs:
     - name: main-gateway
       namespace: ingress
-      sectionName: https-grafana
+      sectionName: https
   hostnames:
     - grafana.qualityspace.com
   rules:
