@@ -282,6 +282,20 @@ spec:
 EOF
 log "Cilium GatewayClass created"
 
+# Wait for GatewayClass to be accepted by Cilium
+log "Waiting for Cilium to accept GatewayClass..."
+for i in {1..30}; do
+    STATUS=$(kubectl get gatewayclass cilium -o jsonpath='{.status.conditions[?(@.type=="Accepted")].status}' 2>/dev/null || echo "")
+    if [ "$STATUS" = "True" ]; then
+        log "GatewayClass accepted by Cilium"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        log "WARNING: GatewayClass not accepted after 30s, continuing anyway"
+    fi
+    sleep 1
+done
+
 #-----------------------------------------------------------------------------
 # Step 4: Install Flux
 #-----------------------------------------------------------------------------
