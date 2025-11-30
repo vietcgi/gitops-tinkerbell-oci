@@ -16,6 +16,10 @@ kind: Workflow
 metadata:
   name: provision-worker-01
   namespace: tink-system
+  annotations:
+    # Security note: Do not commit actual secrets to Git
+    # Use SealedSecrets, External Secrets, or similar solution
+    security-note: "Use external secret management for sensitive data"
 spec:
   # Reference to the hardware definition
   hardwareRef:
@@ -30,17 +34,21 @@ spec:
     # Device mapping (from hardware definition)
     device_1: "{{.Hardware.Spec.Disks[0].Device}}"
 
-    # SSH public key for access
-    ssh_public_key: "ssh-ed25519 AAAA... your-key-here"
+    # SSH public key for access - Use external secret management in production
+    # Example with secret reference: "{{ secret "ssh-public-key" }}"
+    ssh_public_key: ""
 
-    # Tailscale auth key for VPN
-    tailscale_auth_key: "tskey-auth-xxx"
+    # Tailscale auth key for VPN - Use external secret management in production
+    # Example with secret reference: "{{ secret "tailscale-auth-key" }}"
+    tailscale_auth_key: ""
 
-    # K3s cluster join information
-    k3s_url: "https://10.0.1.10:6443"
-    k3s_token: "K3S_TOKEN_HERE"
+    # K3s cluster join information - Use external secret management in production
+    # Example with secret reference: "{{ secret "k3s-server-url" }}"
+    k3s_url: ""
+    # Example with secret reference: "{{ secret "k3s-join-token" }}"
+    k3s_token: ""
 ---
-# Example: Second worker
+# Example: Second worker with secret references (commented for reference)
 # apiVersion: tinkerbell.org/v1alpha1
 # kind: Workflow
 # metadata:
@@ -53,7 +61,9 @@ spec:
 #     name: ubuntu-24.04-k3s
 #   templateParams:
 #     device_1: "/dev/sda"
-#     ssh_public_key: "ssh-ed25519 AAAA... your-key-here"
-#     tailscale_auth_key: "tskey-auth-xxx"
-#     k3s_url: "https://10.0.1.10:6443"
-#     k3s_token: "K3S_TOKEN_HERE"
+#     # In production, use external secret management:
+#     # ssh_public_key: "{{ secret "ssh-public-key" }}"
+#     # tailscale_auth_key: "{{ secret "tailscale-auth-key" }}"
+#     # k3s_url: "{{ secret "k3s-server-url" }}"
+#     # k3s_token: "{{ secret "k3s-join-token" }}"
+#     # These would need to be pulled from external secret stores

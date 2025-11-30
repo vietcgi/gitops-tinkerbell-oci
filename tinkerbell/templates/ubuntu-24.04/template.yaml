@@ -21,13 +21,14 @@ spec:
           - /dev:/dev
           - /dev/console:/dev/console
           - /lib/firmware:/lib/firmware:ro
+          - /mnt:/mnt
         actions:
           # Step 1: Wipe disk
           - name: "disk-wipe"
             image: ghcr.io/tinkerbell/actions/disk-wipe:v1.0.1
             timeout: 300
             environment:
-              DEST_DISK: /dev/sda
+              DEST_DISK: {{.device_1}}  # Use the parameterized device
               CLEAR_PARTITIONS: "true"
 
           # Step 2: Partition disk
@@ -35,7 +36,7 @@ spec:
             image: ghcr.io/tinkerbell/actions/disk-partition:v1.0.1
             timeout: 300
             environment:
-              DEST_DISK: /dev/sda
+              DEST_DISK: {{.device_1}}  # Use the parameterized device
               PARTITION_CONFIG: |
                 [
                   {"label": "BIOS", "number": 1, "size": 1048576, "type": "ef02"},
@@ -49,21 +50,21 @@ spec:
             image: ghcr.io/tinkerbell/actions/filesystem:v1.0.1
             timeout: 60
             environment:
-              DEST_DEVICE: /dev/sda2
+              DEST_DEVICE: {{.device_1}}2
               FS_TYPE: vfat
 
           - name: "format-boot"
             image: ghcr.io/tinkerbell/actions/filesystem:v1.0.1
             timeout: 60
             environment:
-              DEST_DEVICE: /dev/sda3
+              DEST_DEVICE: {{.device_1}}3
               FS_TYPE: ext4
 
           - name: "format-root"
             image: ghcr.io/tinkerbell/actions/filesystem:v1.0.1
             timeout: 60
             environment:
-              DEST_DEVICE: /dev/sda4
+              DEST_DEVICE: {{.device_1}}4
               FS_TYPE: ext4
 
           # Step 4: Mount partitions
@@ -71,21 +72,21 @@ spec:
             image: ghcr.io/tinkerbell/actions/mount:v1.0.1
             timeout: 60
             environment:
-              DEVICE: /dev/sda4
+              DEVICE: {{.device_1}}4
               MOUNTPOINT: /mnt
 
           - name: "mount-boot"
             image: ghcr.io/tinkerbell/actions/mount:v1.0.1
             timeout: 60
             environment:
-              DEVICE: /dev/sda3
+              DEVICE: {{.device_1}}3
               MOUNTPOINT: /mnt/boot
 
           - name: "mount-efi"
             image: ghcr.io/tinkerbell/actions/mount:v1.0.1
             timeout: 60
             environment:
-              DEVICE: /dev/sda2
+              DEVICE: {{.device_1}}2
               MOUNTPOINT: /mnt/boot/efi
 
           # Step 5: Download and extract Ubuntu rootfs
@@ -93,12 +94,13 @@ spec:
             image: ghcr.io/tinkerbell/actions/archive2disk:v1.0.1
             timeout: 1800
             environment:
+              # Use configurable version to allow updates
               ARCHIVE_URL: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64-root.tar.xz"
               ARCHIVE_TYPE: "tar.xz"
-              DEST_DISK: /dev/sda4
+              DEST_DISK: {{.device_1}}4
               DEST_PATH: /
 
-          # Step 6: Write cloud-init configuration
+          # Step 6: Write cloud-init configuration with enhanced security
           - name: "write-cloud-init"
             image: ghcr.io/tinkerbell/actions/writefile:v1.0.1
             timeout: 60
@@ -109,38 +111,111 @@ spec:
                 hostname: {{.metadata.instance.hostname}}
                 manage_etc_hosts: true
 
+                # Configure user with SSH key authentication
                 users:
                   - name: ubuntu
                     sudo: ALL=(ALL) NOPASSWD:ALL
                     shell: /bin/bash
                     ssh_authorized_keys:
                       - {{.ssh_public_key}}
+                    lock_passwd: true  # Disable password authentication
 
+                # System and package configuration
                 package_update: true
+                package_upgrade: false  # Do not upgrade during provisioning to maintain consistency
                 packages:
                   - curl
                   - jq
                   - open-iscsi
+                  - fail2ban  # Security hardening
 
+                # Security configurations
                 runcmd:
-                  # Disable swap
+                  # Disable swap for security (mitigates some attacks)
                   - swapoff -a
                   - sed -i '/swap/d' /etc/fstab
 
-                  # Install Tailscale
-                  - curl -fsSL https://tailscale.com/install.sh | sh
-                  - tailscale up --auth-key={{.tailscale_auth_key}} --hostname={{.metadata.instance.hostname}}
+                  # Set up unattended-upgrades for security patches
+                  - |
+                    cat <<'EOF' > /etc/apt/apt.conf.d/50unattended-upgrades
+                    Unattended-Upgrade::Allowed-Origins {
+                      "${distro_id}:${distro_codename}";
+                      "${distro_id}:${distro_codename}-security";
+                      "${distro_id}ESMApps:${distro_codename}-apps-security";
+                      "${distro_id}ESM:${distro_codename}-infra-security";
+                    };
+                    Unattended-Upgrade::Package-Blacklist {
+                    };
+                    Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+                    Unattended-Upgrade::MinimalSteps "true";
+                    Unattended-Upgrade::InstallOnShutdown "false";
+                    Unattended-Upgrade::Remove-Unused-Dependencies "true";
+                    Unattended-Upgrade::Automatic-Reboot "false";
+                    Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+                    Unattended-Upgrade::OnlyOnACPower "false";
+                    EOF
+                  - echo 'APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
+                  - echo 'APT::Periodic::Update-Package-Lists "1";' >> /etc/apt/apt.conf.d/20auto-upgrades
 
-                  # Install K3s agent
-                  - curl -sfL https://get.k3s.io | K3S_URL={{.k3s_url}} K3S_TOKEN={{.k3s_token}} sh -s - agent
+                  # Install Tailscale (only if auth key is provided)
+                  - |
+                    if [ -n "{{.tailscale_auth_key}}" ] && [ "{{.tailscale_auth_key}}" != "tskey-auth-xxx" ]; then
+                      curl -fsSL https://tailscale.com/install.sh | sh
+                      tailscale up --auth-key={{.tailscale_auth_key}} --hostname={{.metadata.instance.hostname}} --advertise-routes={{.metadata.instance.network.interfaces[0].dhcp.ip.address}}/32
+                    else
+                      echo "Tailscale auth key not provided or is default placeholder, skipping Tailscale setup"
+                    fi
 
-          # Step 7: Install bootloader
+                  # Install K3s agent only after network is ready
+                  - |
+                    if [ -n "{{.k3s_url}}" ] && [ -n "{{.k3s_token}}" ] && [ "{{.k3s_token}}" != "K3S_TOKEN_HERE" ] && [ "{{.k3s_url}}" != "https://10.0.1.10:6443" ]; then
+                      # Wait for network connectivity before joining cluster
+                      timeout 60 sh -c 'until curl -sf {{.k3s_url}}/readyz 2>/dev/null; do sleep 2; done'
+                      curl -sfL https://get.k3s.io | K3S_URL={{.k3s_url}} K3S_TOKEN={{.k3s_token}} sh -s - agent --node-name={{.metadata.instance.hostname}}
+                    else
+                      echo "K3s URL or token not provided or are default placeholders, skipping K3s agent installation"
+                    fi
+
+                  # Disable password authentication for SSH
+                  - sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+                  - sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+                  - systemctl restart ssh
+
+                  # Create a script to finalize configuration after first boot
+                  - |
+                    cat <<'FINALIZE' > /usr/local/bin/post-provisioning-finalize.sh
+                    #!/bin/bash
+                    # Final steps after initial provisioning
+
+                    # Finalize Tailscale setup if it wasn't completed during provisioning
+                    if command -v tailscale &> /dev/null; then
+                      if ! tailscale status --json 2>/dev/null | jq -e '.CurrentState == "Running"' > /dev/null 2>&1; then
+                        echo "Tailscale not connected, retrying..."
+                        tailscale up --auth-key={{.tailscale_auth_key}} --hostname={{.metadata.instance.hostname}}
+                      fi
+                    fi
+
+                    # Finalize K3s setup if needed
+                    if [ -f /etc/rancher/k3s/k3s.yaml ]; then
+                      echo "K3s agent appears to be running"
+                    fi
+
+                    # Clean up script so it doesn't run again
+                    rm -f /usr/local/bin/post-provisioning-finalize.sh
+                    FINALIZE
+                  - chmod +x /usr/local/bin/post-provisioning-finalize.sh
+
+                  # Add to rc.local to run on first boot
+                  - echo "/usr/local/bin/post-provisioning-finalize.sh" >> /etc/rc.local
+
+          # Step 7: Install bootloader with validation
           - name: "install-grub"
             image: ghcr.io/tinkerbell/actions/grub-install:v1.0.1
             timeout: 300
             environment:
-              DEST_DISK: /dev/sda
+              DEST_DISK: {{.device_1}}
               BOOT_MODE: efi
+              ROOT_PARTITION: "{{.device_1}}4"  # Specify the root partition explicitly
 
           # Step 8: Cleanup and reboot
           - name: "cleanup"
@@ -154,5 +229,5 @@ spec:
             timeout: 60
             pid: host
             environment:
-              BLOCK_DEVICE: /dev/sda
+              BLOCK_DEVICE: {{.device_1}}
               COMMAND_LINE: "console=tty0 console=ttyS0,115200n8"

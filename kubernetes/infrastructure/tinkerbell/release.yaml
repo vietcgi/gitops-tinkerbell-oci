@@ -31,11 +31,12 @@ spec:
         name: tinkerbell
         namespace: flux-system
   values:
-    # Required: Pod CIDR for trusted proxies (K3s default)
+    # Required: Pod CIDR for trusted proxies (K3s default, but configurable)
+    # This should match your cluster's Pod CIDR
     trustedProxies: "10.42.0.0/16"
 
     # HookOS artifacts served via ingress
-    artifactsFileServer: "https://tinkerbell.qualityspace.com"
+    artifactsFileServer: "https://tinkerbell.example.com/hook"  # This should be changed to your actual domain
 
     deployment:
       replicas: 1
@@ -86,6 +87,16 @@ spec:
       hookos:
         service:
           type: ClusterIP
+
+    # Health checks
+    healthChecks:
+      enabled: true
+      livenessProbe:
+        initialDelaySeconds: 30
+        periodSeconds: 10
+      readinessProbe:
+        initialDelaySeconds: 5
+        periodSeconds: 5
 ---
 # HTTPRoute for Tinkerbell services
 # References the shared main-gateway in the ingress namespace
@@ -99,7 +110,7 @@ spec:
     - name: main-gateway
       namespace: ingress
   hostnames:
-    - tinkerbell.qualityspace.com
+    - tinkerbell.example.com  # This should be changed to your actual domain
   rules:
     # HookOS artifacts at /hook path
     - matches:
@@ -117,3 +128,29 @@ spec:
       backendRefs:
         - name: tinkerbell
           port: 7171
+---
+# ServiceMonitor for Tinkerbell metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tinkerbell-components
+  namespace: tinkerbell
+spec:
+  selector:
+    app.kubernetes.io/instance: tinkerbell
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+---
+# PodDisruptionBudget to ensure availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tinkerbell-pdb
+  namespace: tinkerbell
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: tinkerbell
