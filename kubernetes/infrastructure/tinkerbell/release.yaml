@@ -128,21 +128,7 @@ spec:
       backendRefs:
         - name: tinkerbell
           port: 7171
----
-# ServiceMonitor for Tinkerbell metrics
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: tinkerbell-components
-  namespace: tinkerbell
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/instance: tinkerbell
-  endpoints:
-  - port: metrics
-    interval: 30s
-    path: /metrics
+# ServiceMonitor moved to infrastructure-config/monitoring-config/tinkerbell-metrics.yaml (depends on kube-prometheus-stack CRDs)
 ---
 # PodDisruptionBudget to ensure availability
 apiVersion: policy/v1

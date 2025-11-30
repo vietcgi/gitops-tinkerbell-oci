@@ -1,0 +1,16 @@
+---
+# ServiceMonitor for Tinkerbell metrics
+# Moved to infrastructure-config layer (depends on kube-prometheus-stack CRDs)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tinkerbell-components
+  namespace: tinkerbell
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: tinkerbell
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
