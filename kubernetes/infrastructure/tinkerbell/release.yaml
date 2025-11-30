@@ -32,7 +32,7 @@ spec:
   chart:
     spec:
       chart: tinkerbell
-      version: "0.21.0"
+      version: "v0.21.1-f2610bdd"
       sourceRef:
         kind: HelmRepository
         name: tinkerbell
