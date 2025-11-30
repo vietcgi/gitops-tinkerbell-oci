@@ -101,11 +101,11 @@ spec:
       kubevip:
         enabled: false
 
-  # Post-render patch to set appProtocol on hookos service
-  # This tells Cilium Gateway API to use HTTP/1.1 (nginx doesn't support HTTP/2)
+  # Post-render patches for service appProtocol
   postRenderers:
     - kustomize:
         patches:
+          # hookos: HTTP/1.1 (nginx doesn't support HTTP/2)
           - target:
               kind: Service
               name: hookos
@@ -113,6 +113,14 @@ spec:
               - op: add
                 path: /spec/ports/0/appProtocol
                 value: http
+          # tinkerbell: gRPC uses HTTP/2 plaintext (h2c)
+          - target:
+              kind: Service
+              name: tinkerbell
+            patch: |
+              - op: add
+                path: /spec/ports/5/appProtocol
+                value: kubernetes.io/h2c
 ---
 # HTTPRoute for HookOS artifacts (kernel, initramfs) - HTTPS
 # Served at hookos.qualityspace.com (DNS-only in Cloudflare)
@@ -190,13 +198,23 @@ spec:
       backendRefs:
         - name: tinkerbell
           port: 7171
-    # Tink gRPC API (catch-all)
-    # Note: HookOS files served via NodePort http://170.9.8.103:30080
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
+---
+# GRPCRoute for Tink Server gRPC API
+# tink-agent in HookOS connects here to get workflows
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: tinkerbell-grpc
+  namespace: tink-system
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https
+  hostnames:
+    - tinkerbell.qualityspace.com
+  rules:
+    - backendRefs:
         - name: tinkerbell
           port: 42113
 ---
