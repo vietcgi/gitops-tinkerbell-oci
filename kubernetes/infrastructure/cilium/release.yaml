@@ -9,7 +9,7 @@ spec:
   chart:
     spec:
       chart: cilium
-      version: "1.14.5"  # Downgrade from 1.18.4 - hostNetwork works in 1.14.x
+      version: "1.18.4"  # Latest stable (Nov 2025)
       sourceRef:
         kind: HelmRepository
         name: cilium

@@ -174,7 +174,8 @@ gitops-metal-foundry/
 - [Architecture](docs/architecture.md)
 - [Adding Bare Metal](docs/adding-bare-metal.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Oracle Free Tier](docs/oracle-free-tier.md)
+- [Cilium Troubleshooting](docs/cilium-troubleshooting.md)
+- [Cilium Debugging Scripts](docs/cilium-troubleshooting.md)
 
 ## Contributing
 
