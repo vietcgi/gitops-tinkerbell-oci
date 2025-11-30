@@ -38,7 +38,7 @@ spec:
     gatewayAPI:
       enabled: true
       hostNetwork:
-        enabled: true
+        enabled: false
 
     # Envoy proxy settings - required for privileged port binding
     envoy:
