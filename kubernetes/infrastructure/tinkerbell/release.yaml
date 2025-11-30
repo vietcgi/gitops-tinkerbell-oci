@@ -90,9 +90,10 @@ spec:
       hookos:
         enabled: true
         downloadURL: "https://github.com/tinkerbell/hook/releases/download/v0.11.1"
-        # Use ClusterIP since we're behind Gateway API
+        # Use NodePort - Gateway API has HTTP/2 issues with nginx (HTTP/1.1 only)
         service:
-          type: ClusterIP
+          type: NodePort
+          nodePort: 30080
       # Disable kubevip - using Cilium L2 announcements
       kubevip:
         enabled: false
