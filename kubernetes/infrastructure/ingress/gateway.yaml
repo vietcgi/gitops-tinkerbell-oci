@@ -7,14 +7,12 @@ metadata:
 ---
 # Shared Gateway for all services
 # TLS certificates via Let's Encrypt with HTTP-01 challenge
-# HTTP listener handles redirects to HTTPS and ACME challenges
+# Using hostNetwork mode - binds directly to host ports 80/443
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: main-gateway
   namespace: ingress
-  annotations:
-    io.cilium/lb-ipam-pool: lb-pool
 spec:
   gatewayClassName: cilium
   listeners:
