@@ -226,33 +226,8 @@ log "Waiting for Cilium pods to be ready..."
 kubectl wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout=300s 2>/dev/null || true
 log "Cilium is ready"
 
-# Configure Cilium LoadBalancer IP Pool
-# Create a CiliumLoadBalancerIPPool with the node's private IP so that
-# LoadBalancer services and Gateways can be assigned this IP.
-log "Configuring Cilium LoadBalancer IP Pool..."
-PRIVATE_IP=$(curl -s --connect-timeout 5 http://169.254.169.254/opc/v1/vnics/ 2>/dev/null | jq -r '.[0].privateIp // empty' || echo "")
-if [ -z "$PRIVATE_IP" ]; then
-    # Fallback: get the IP from the primary interface
-    PRIVATE_IP=$(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1 || echo "")
-fi
-
-if [ -n "$PRIVATE_IP" ]; then
-    log "Node private IP: $PRIVATE_IP"
-    log "Creating CiliumLoadBalancerIPPool..."
-    cat <<EOF | kubectl apply -f -
-apiVersion: cilium.io/v2alpha1
-kind: CiliumLoadBalancerIPPool
-metadata:
-  name: lb-pool
-spec:
-  blocks:
-    - start: "${PRIVATE_IP}"
-      stop: "${PRIVATE_IP}"
-EOF
-    log "CiliumLoadBalancerIPPool 'lb-pool' created with IP: $PRIVATE_IP"
-else
-    log "WARNING: Could not determine private IP for LoadBalancer pool"
-fi
+# NOTE: CiliumLoadBalancerIPPool is managed by Flux (kubernetes/infrastructure/cilium/pool.yaml)
+# With hostNetwork mode, the Gateway binds directly to host ports, so LB pool is optional
 
 # Create L2 Announcement Policy (matches kubernetes/infrastructure/cilium/release.yaml)
 log "Creating CiliumL2AnnouncementPolicy..."
