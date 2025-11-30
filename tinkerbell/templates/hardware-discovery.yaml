@@ -1,0 +1,105 @@
+# Hardware Discovery and Registration Template
+# This template runs on unknown servers to collect hardware info
+---
+apiVersion: tinkerbell.org/v1alpha1
+kind: Template
+metadata:
+  name: hardware-discovery
+  namespace: tink-system
+spec:
+  data: |
+    version: "0.1"
+    name: hardware-discovery
+    global_timeout: 1800
+    tasks:
+      - name: "hardware-discovery"
+        worker: "{{.device_1}}"
+        volumes:
+          - /dev:/dev
+          - /dev/console:/dev/console
+          - /lib/firmware:/lib/firmware:ro
+          - /mnt:/mnt
+        actions:
+          # Step 1: Basic hardware discovery script
+          - name: "discovery-script"
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.1
+            timeout: 60
+            environment:
+              DEST_PATH: /mnt/discover.sh
+              CONTENTS: |
+                #!/bin/bash
+                echo "Hardware Discovery Report" > /tmp/hw-report.txt
+                echo "=========================" >> /tmp/hw-report.txt
+                echo "MAC Address: $(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print $2}')" >> /tmp/hw-report.txt
+                echo "CPU Info:" >> /tmp/hw-report.txt
+                lscpu >> /tmp/hw-report.txt
+                echo "Memory Info:" >> /tmp/hw-report.txt
+                free -h >> /tmp/hw-report.txt
+                echo "Disk Info:" >> /tmp/hw-report.txt
+                lsblk >> /tmp/hw-report.txt
+                echo "Network Info:" >> /tmp/hw-report.txt
+                ip addr >> /tmp/hw-report.txt
+                
+                # Create hardware registration YAML template
+                cat <<EOF > /tmp/hardware-registration.yaml
+                apiVersion: tinkerbell.org/v1alpha1
+                kind: Hardware
+                metadata:
+                  name: discovered-\$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print \$2}' | tr ':' '-')
+                  namespace: tink-system
+                spec:
+                  id: "discovered-\$(uuidgen)"
+                  metadata:
+                    facility:
+                      facility_code: "auto-discovered"
+                      plan_slug: "auto-registered"
+                    instance:
+                      hostname: "auto-\$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print \$2}' | tr ':' '-')"
+                      operating_system:
+                        distro: "pending-assignment"
+                        version: "1.0"
+                  network:
+                    interfaces:
+                      - dhcp:
+                          mac: "\$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print \$2}')"
+                          hostname: "auto-\$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print \$2}' | tr ':' '-')"
+                          lease_time: 86400
+                          name_servers:
+                            - "8.8.8.8"
+                            - "8.8.4.4"
+                  disks:
+                    - device: "/dev/sda"  # Will need manual update
+                EOF
+                
+                # Attempt to report to discovery service (for admin review)
+                # In real implementation, this would POST to an API
+                echo "Hardware discovery completed. Report saved to /tmp/hw-report.txt"
+                echo "Registration template saved to /tmp/hardware-registration.yaml"
+                echo "MAC: \$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print \$2}')"
+                echo "This server will remain in discovery mode until manually configured."
+                
+                # Write discovery report to a persistent location if possible
+                # This is a limitation - we can't persist across reboots without mounting root disk
+                # which the discovery OS typically doesn't do for security
+                
+                # Sleep to allow admin to access the live environment
+                sleep 3600  # Keep system alive for 1 hour for manual inspection
+
+          # Step 2: Run the discovery script (this keeps the system alive)
+          - name: "run-discovery"
+            image: ghcr.io/tinkerbell/actions/command:v1.0.1
+            timeout: 3600
+            environment:
+              DEST_ROOT: /mnt
+              COMMAND: "bash"
+              ARGS: "/discover.sh"
+              CHROOT: "false"
+
+          # Step 3: Reboot to discovery mode (not to final OS)
+          - name: "reboot-discovery"
+            image: ghcr.io/tinkerbell/actions/kexec:v1.0.1
+            timeout: 60
+            pid: host
+            environment:
+              BLOCK_DEVICE: ""
+              COMMAND_LINE: "console=tty0 console=ttyS0,115200n8"

@@ -1,0 +1,25 @@
+# Default Discovery Hardware Definition
+# Used for unknown servers that boot and need registration
+---
+apiVersion: tinkerbell.org/v1alpha1
+kind: Hardware
+metadata:
+  name: discovered-hardware
+  namespace: tink-system
+spec:
+  # This will match any MAC address that doesn't have a specific hardware definition
+  id: "discovered-{{.mac}}"  # Will be populated dynamically
+  metadata:
+    facility:
+      facility_code: "unknown"
+      plan_slug: "discovery"
+    instance:
+      hostname: "discovered-{{.mac | replace \":\" \"-\"}}"
+      operating_system:
+        distro: "discovery"
+        version: "1.0"
+  network:
+    interfaces:
+      - dhcp:
+          mac: "00:00:00:00:00:00"  # This would match any MAC
+          hostname: "discovered-{{.mac | replace \":\" \"-\"}}"

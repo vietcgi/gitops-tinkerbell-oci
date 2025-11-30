@@ -1,0 +1,16 @@
+# Default Discovery Workflow for Unknown Hardware
+# This workflow runs when a server boots that isn't registered in Tinkerbell
+---
+apiVersion: tinkerbell.org/v1alpha1
+kind: Workflow
+metadata:
+  name: default-discovery
+  namespace: tink-system
+spec:
+  # This workflow is designed to be used as a fallback
+  # for hardware that doesn't have a specific configuration
+  templateRef:
+    name: hardware-discovery
+  templateParams:
+    device_1: "/dev/sda"  # Default first disk
+    # In a real implementation, we'd have a mechanism to detect the primary disk

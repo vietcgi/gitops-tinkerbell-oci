@@ -1,0 +1,92 @@
+# Auto-Discovery Hook Template for Self-Registration
+# This template creates a self-registering workflow for unknown hardware
+---
+apiVersion: tinkerbell.org/v1alpha1
+kind: Template
+metadata:
+  name: self-register-template
+  namespace: tink-system
+spec:
+  data: |
+    version: "0.1"
+    name: self-register-template
+    global_timeout: 3600
+    tasks:
+      - name: "self-registration"
+        worker: "/dev/sda"  # Default first disk
+        volumes:
+          - /dev:/dev
+          - /dev/console:/dev/console
+          - /lib/firmware:/lib/firmware:ro
+          - /mnt:/mnt
+        actions:
+          # Step 1: Discover hardware and create registration request
+          - name: "create-registration-script"
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.1
+            timeout: 60
+            environment:
+              DEST_PATH: /mnt/register.sh
+              CONTENTS: |
+                #!/bin/bash
+                
+                # Get the current MAC address from the primary interface
+                MAC=$(ip link show | grep -oE 'link/ether ([0-9a-fA-F:]{17})' | head -1 | awk '{print $2}')
+                FORMATTED_MAC=$(echo $MAC | tr ':' '-')
+                
+                # Get hardware information
+                CPU_INFO=$(lscpu --json | jq -c .)
+                MEMORY_INFO=$(free -b | tail -n +2 | awk '{print $2}' | head -n 1)
+                DISK_INFO=$(lsblk -J -o NAME,SIZE,TYPE | jq -c .)
+                
+                # Create a hardware registration request
+                REGISTRATION_DATA=$(cat <<EOF
+                {
+                  "mac": "$MAC",
+                  "hostname": "discovered-$FORMATTED_MAC",
+                  "hardware_info": {
+                    "cpu": $CPU_INFO,
+                    "memory_bytes": $MEMORY_INFO,
+                    "disks": $DISK_INFO
+                  },
+                  "registration_time": "$(date -Iseconds)"
+                }
+                EOF
+                )
+                
+                echo "$REGISTRATION_DATA" > /tmp/hardware-registration.json
+                
+                # In a real implementation, this would POST to an API
+                # For now, just output to console for manual processing
+                echo "Hardware Registration Request:"
+                echo "$REGISTRATION_DATA"
+                
+                # Also save to a temporary location (won't persist after reboot)
+                echo "$REGISTRATION_DATA" | base64 -w 0 > /tmp/registration.b64
+                
+                # Create a QR code or other visual marker for manual entry
+                echo "Please register this hardware using the details above."
+                echo "MAC: $MAC"
+                echo "Formatted Name: discovered-$FORMATTED_MAC"
+                
+                # Wait for admin interaction (in real system, this would be API-based)
+                # For demo purposes, just keep the system alive
+                echo "System will remain in discovery mode for 1 hour."
+                sleep 3600
+
+          # Step 2: Execute registration script
+          - name: "execute-registration"
+            image: ghcr.io/tinkerbell/actions/command:v1.0.1
+            timeout: 3660  # 1 hour + buffer
+            environment:
+              COMMAND: "bash"
+              ARGS: "/register.sh"
+              DEST_ROOT: "/mnt"
+
+          # Step 3: Reboot back to discovery mode
+          - name: "reboot-discovery"
+            image: ghcr.io/tinkerbell/actions/kexec:v1.0.1
+            timeout: 60
+            pid: host
+            environment:
+              BLOCK_DEVICE: ""
+              COMMAND_LINE: "console=tty0 console=ttyS0,115200n8"
