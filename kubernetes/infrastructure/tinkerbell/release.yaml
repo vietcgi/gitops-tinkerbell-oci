@@ -201,6 +201,8 @@ spec:
 ---
 # GRPCRoute for Tink Server gRPC API
 # tink-agent in HookOS connects here to get workflows
+# NOTE: Using HTTP listener due to Cilium ALPN bug (https://github.com/cilium/cilium/issues/30794)
+# HTTPS listener doesn't negotiate ALPN, breaking gRPC clients
 apiVersion: gateway.networking.k8s.io/v1
 kind: GRPCRoute
 metadata:
@@ -210,7 +212,7 @@ spec:
   parentRefs:
     - name: main-gateway
       namespace: ingress
-      sectionName: https
+      sectionName: http
   hostnames:
     - tinkerbell.qualityspace.com
   rules:
