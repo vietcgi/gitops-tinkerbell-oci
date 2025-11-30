@@ -60,6 +60,9 @@ spec:
         fsGroup: 472
         runAsUser: 472
         runAsGroup: 472
+      # Disable the init-chown-data container - fsGroup handles permissions
+      initChownData:
+        enabled: false
       # Behind Cloudflare proxy - tell Grafana to use HTTPS URLs
       grafana.ini:
         server:
