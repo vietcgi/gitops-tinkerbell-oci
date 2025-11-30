@@ -264,6 +264,17 @@ fi
 #-----------------------------------------------------------------------------
 log_section "Step 3: Cilium CNI Installation"
 
+# Install Cilium CLI (useful for debugging: cilium status, cilium connectivity test)
+if ! command -v cilium &> /dev/null; then
+    log "Installing Cilium CLI..."
+    CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt 2>/dev/null || echo "v0.16.22")
+    ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+    curl -sL --fail "https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${ARCH}.tar.gz" | tar xz -C /usr/local/bin
+    log "Cilium CLI installed: $(cilium version --client 2>/dev/null | head -1 || echo 'installed')"
+else
+    log "Cilium CLI already installed: $(cilium version --client 2>/dev/null | head -1)"
+fi
+
 # Add Cilium Helm repository
 log "Adding Cilium Helm repository..."
 helm repo add cilium https://helm.cilium.io/
