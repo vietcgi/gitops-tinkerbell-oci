@@ -137,7 +137,8 @@ metadata:
   namespace: tinkerbell
 spec:
   selector:
-    app.kubernetes.io/instance: tinkerbell
+    matchLabels:
+      app.kubernetes.io/instance: tinkerbell
   endpoints:
   - port: metrics
     interval: 30s
