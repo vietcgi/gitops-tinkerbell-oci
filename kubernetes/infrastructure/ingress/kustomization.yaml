@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - gateway-api-crds
   - gateway.yaml
+  - certificate-grafana.yaml
   - release.yaml
