@@ -75,6 +75,11 @@ spec:
           # Enable HTTP iPXE script serving at /auto.ipxe
           httpIpxeScriptEnabled: true
           httpIpxeScriptUrl: "https://tinkerbell.qualityspace.com"
+          # gRPC endpoint for HookOS tink-worker to connect to
+          # Using HTTP:80 due to Cilium ALPN bug (https://github.com/cilium/cilium/issues/30794)
+          # GRPCRoute only works on HTTP listener, not HTTPS
+          tinkServer: "tinkerbell.qualityspace.com:80"
+          tinkServerTls: false
 
       resources:
         requests:
