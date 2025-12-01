@@ -38,9 +38,10 @@ spec:
         name: tinkerbell
         namespace: flux-system
   values:
-    # Public IP for internal service discovery
-    # External access is via Gateway API at tinkerbell.qualityspace.com
-    publicIP: "170.9.8.103"
+    # Public address for HookOS to connect back to Tinkerbell
+    # Must be reachable from bare metal servers during provisioning
+    # Using domain name since gRPC is exposed via Gateway API on port 80
+    publicIP: "tinkerbell.qualityspace.com"
 
     # Trusted proxies (Cilium pod CIDR)
     trustedProxies:
