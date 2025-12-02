@@ -118,9 +118,9 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Use kexec to boot directly into installed OS without going through BIOS
-          # kexec loads the new kernel directly, bypassing PXE boot entirely
-          # This avoids the allowPXE issue since there's no BIOS reboot
+          # Kexec boots directly into installed OS kernel - bypasses BIOS/PXE entirely
+          # This is the correct solution since we use ISC DHCP (not Smee's DHCP)
+          # and Tinkerbell's allowPXE toggle doesn't affect our DHCP server
           - name: kexec-into-os
             image: quay.io/tinkerbell/actions/kexec:latest
             timeout: 90
@@ -250,9 +250,9 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Use kexec to boot directly into installed OS without going through BIOS
-          # kexec loads the new kernel directly, bypassing PXE boot entirely
-          # This avoids the allowPXE issue since there's no BIOS reboot
+          # Kexec boots directly into installed OS kernel - bypasses BIOS/PXE entirely
+          # This is the correct solution since we use ISC DHCP (not Smee's DHCP)
+          # and Tinkerbell's allowPXE toggle doesn't affect our DHCP server
           - name: kexec-into-os
             image: quay.io/tinkerbell/actions/kexec:latest
             timeout: 90
