@@ -112,12 +112,12 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
+          # Use nsenter to reboot from host namespace (more reliable than kexec/reboot actions)
           - name: reboot
-            image: ghcr.io/tinkerbell/actions/reboot:v1.0.1
+            image: justincormack/nsenter1
             timeout: 90
             pid: host
-            volumes:
-              - /var/run/dbus:/var/run/dbus
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
 # Uses nsenter to refresh partition table after image2disk (fixes mount failures)
@@ -230,9 +230,9 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
+          # Use nsenter to reboot from host namespace (more reliable than kexec/reboot actions)
           - name: reboot
-            image: ghcr.io/tinkerbell/actions/reboot:v1.0.1
+            image: justincormack/nsenter1
             timeout: 90
             pid: host
-            volumes:
-              - /var/run/dbus:/var/run/dbus
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
