@@ -21,19 +21,12 @@ spec:
         actions:
           - name: stream-ubuntu-image
             image: quay.io/tinkerbell/actions/image2disk:latest
-            timeout: 600
+            timeout: 300
             environment:
               DEST_DISK: /dev/sda
-              IMG_URL: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+              # Pre-converted raw.gz hosted locally for fast provisioning (~1-2 min vs 22 min)
+              IMG_URL: https://hookos.qualityspace.com/noble.raw.gz
               COMPRESSED: true
-          - name: grow-partition
-            image: quay.io/tinkerbell/actions/cexec:latest
-            timeout: 90
-            environment:
-              BLOCK_DEVICE: /dev/sda1
-              FS_TYPE: ext4
-              CHROOT: "n"
-              CMD_LINE: growpart /dev/sda 1 && resize2fs /dev/sda1
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
