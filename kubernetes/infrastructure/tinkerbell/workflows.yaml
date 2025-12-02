@@ -11,3 +11,16 @@ spec:
   hardwareMap:
     device_1: 00:0c:29:73:03:4b
     hostname: colo-server-01
+---
+# Workflow for anvil (Dell R610) Ubuntu 24.04 installation
+apiVersion: tinkerbell.org/v1alpha1
+kind: Workflow
+metadata:
+  name: anvil-ubuntu
+  namespace: tink-system
+spec:
+  templateRef: anvil-ubuntu-2404
+  hardwareRef: anvil
+  hardwareMap:
+    device_1: 00:21:9b:a1:dc:c0
+    hostname: anvil

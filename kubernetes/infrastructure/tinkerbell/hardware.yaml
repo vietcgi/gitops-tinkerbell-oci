@@ -1,0 +1,57 @@
+---
+# Hardware definition for colo-server-01 (existing VM)
+apiVersion: tinkerbell.org/v1alpha1
+kind: Hardware
+metadata:
+  name: colo-server-01
+  namespace: tink-system
+spec:
+  disks:
+    - device: /dev/sda
+  interfaces:
+    - dhcp:
+        arch: x86_64
+        hostname: colo-server-01
+        ip:
+          address: 108.181.38.85
+          gateway: 108.181.38.65
+          netmask: 255.255.255.224
+        mac: 00:0c:29:73:03:4b
+        uefi: true
+      netboot:
+        allowPXE: true
+        allowWorkflow: true
+  metadata:
+    facility:
+      facility_code: colo
+    instance:
+      hostname: colo-server-01
+---
+# Hardware definition for anvil (Dell R610)
+# MAC: 00:21:9b:a1:dc:c0 - discovered from DHCP logs
+apiVersion: tinkerbell.org/v1alpha1
+kind: Hardware
+metadata:
+  name: anvil
+  namespace: tink-system
+spec:
+  disks:
+    - device: /dev/sda
+  interfaces:
+    - dhcp:
+        arch: x86_64
+        hostname: anvil
+        ip:
+          address: 108.181.38.87
+          gateway: 108.181.38.65
+          netmask: 255.255.255.224
+        mac: 00:21:9b:a1:dc:c0
+        uefi: true
+      netboot:
+        allowPXE: true
+        allowWorkflow: true
+  metadata:
+    facility:
+      facility_code: colo
+    instance:
+      hostname: anvil
