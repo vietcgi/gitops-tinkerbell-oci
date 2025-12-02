@@ -20,7 +20,7 @@ spec:
           - /lib/firmware:/lib/firmware:ro
         actions:
           - name: stream-ubuntu-image
-            image: quay.io/tinkerbell/actions/image2disk:latest
+            image: ghcr.io/tinkerbell/actions/image2disk:v1.0.0
             timeout: 300
             environment:
               DEST_DISK: /dev/sda
@@ -34,8 +34,14 @@ spec:
             timeout: 60
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda && sleep 2 && ls -la /dev/sda*"]
+          # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
+          - name: reset-cloud-init-state
+            image: justincormack/nsenter1
+            timeout: 120
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id && echo 'uninitialized' > /mnt/etc/machine-id && umount /mnt"]
           - name: write-netplan
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -62,7 +68,7 @@ spec:
               MODE: "0644"
               DIRMODE: "0755"
           - name: write-cloud-init-meta
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -76,7 +82,7 @@ spec:
               MODE: "0644"
               DIRMODE: "0755"
           - name: write-cloud-init-user
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -112,12 +118,19 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Use nsenter to reboot from host namespace (more reliable than kexec/reboot actions)
-          - name: reboot
-            image: justincormack/nsenter1
+          # Use kexec to boot directly into installed OS without going through BIOS
+          # kexec loads the new kernel directly, bypassing PXE boot entirely
+          # This avoids the allowPXE issue since there's no BIOS reboot
+          - name: kexec-into-os
+            image: ghcr.io/tinkerbell/actions/kexec:v1.0.0
             timeout: 90
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            environment:
+              BLOCK_DEVICE: /dev/sda1
+              FS_TYPE: ext4
+              KERNEL_PATH: /boot/vmlinuz
+              INITRD_PATH: /boot/initrd.img
+              CMD_LINE: "root=/dev/sda1 ro console=tty0 console=ttyS0,115200"
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
 # Uses nsenter to refresh partition table after image2disk (fixes mount failures)
@@ -140,11 +153,12 @@ spec:
           - /lib/firmware:/lib/firmware:ro
         actions:
           - name: stream-ubuntu-image
-            image: quay.io/tinkerbell/actions/image2disk:latest
-            timeout: 300
+            image: ghcr.io/tinkerbell/actions/image2disk:v1.0.0
+            timeout: 600
             environment:
               DEST_DISK: /dev/sda
-              IMG_URL: https://hookos.qualityspace.com/noble.raw.gz
+              # Custom Ubuntu image with bnx2 driver for Dell R610
+              IMG_URL: http://108.181.38.67:8081/noble.raw.gz
               COMPRESSED: "true"
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
           - name: partition-refresh
@@ -152,8 +166,14 @@ spec:
             timeout: 60
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda && sleep 2 && ls -la /dev/sda*"]
+          # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
+          - name: reset-cloud-init-state
+            image: justincormack/nsenter1
+            timeout: 120
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id && echo 'uninitialized' > /mnt/etc/machine-id && umount /mnt"]
           - name: write-netplan
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -180,7 +200,7 @@ spec:
               MODE: "0644"
               DIRMODE: "0755"
           - name: write-cloud-init-meta
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -194,7 +214,7 @@ spec:
               MODE: "0644"
               DIRMODE: "0755"
           - name: write-cloud-init-user
-            image: quay.io/tinkerbell/actions/writefile:latest
+            image: ghcr.io/tinkerbell/actions/writefile:v1.0.0
             timeout: 90
             environment:
               DEST_DISK: /dev/sda1
@@ -230,9 +250,16 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Use nsenter to reboot from host namespace (more reliable than kexec/reboot actions)
-          - name: reboot
-            image: justincormack/nsenter1
+          # Use kexec to boot directly into installed OS without going through BIOS
+          # kexec loads the new kernel directly, bypassing PXE boot entirely
+          # This avoids the allowPXE issue since there's no BIOS reboot
+          - name: kexec-into-os
+            image: ghcr.io/tinkerbell/actions/kexec:v1.0.0
             timeout: 90
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            environment:
+              BLOCK_DEVICE: /dev/sda1
+              FS_TYPE: ext4
+              KERNEL_PATH: /boot/vmlinuz
+              INITRD_PATH: /boot/initrd.img
+              CMD_LINE: "root=/dev/sda1 ro console=tty0 console=ttyS0,115200"
