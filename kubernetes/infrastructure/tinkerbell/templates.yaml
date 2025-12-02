@@ -27,14 +27,6 @@ spec:
               # Pre-converted raw.gz hosted locally for fast provisioning (~1-2 min vs 22 min)
               IMG_URL: https://hookos.qualityspace.com/noble.raw.gz
               COMPRESSED: true
-          - name: debug-partitions
-            image: quay.io/tinkerbell/actions/cexec:latest
-            timeout: 60
-            environment:
-              BLOCK_DEVICE: /dev/sda1
-              FS_TYPE: ext4
-              CHROOT: "n"
-              CMD_LINE: lsblk -f /dev/sda && fdisk -l /dev/sda && ls -la /etc/netplan/ || mkdir -p /etc/netplan
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
