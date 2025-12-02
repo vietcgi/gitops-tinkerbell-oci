@@ -31,7 +31,7 @@ spec:
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
             environment:
-              DEST_DISK: /dev/sda1
+              DEST_DISK: /dev/sda2
               FS_TYPE: ext4
               DEST_PATH: /etc/netplan/50-cloud-init.yaml
               CONTENTS: |
@@ -57,7 +57,7 @@ spec:
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
             environment:
-              DEST_DISK: /dev/sda1
+              DEST_DISK: /dev/sda2
               FS_TYPE: ext4
               DEST_PATH: /var/lib/cloud/seed/nocloud/meta-data
               CONTENTS: |
@@ -71,7 +71,7 @@ spec:
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
             environment:
-              DEST_DISK: /dev/sda1
+              DEST_DISK: /dev/sda2
               FS_TYPE: ext4
               DEST_PATH: /var/lib/cloud/seed/nocloud/user-data
               CONTENTS: |
@@ -109,5 +109,5 @@ spec:
             timeout: 90
             pid: host
             environment:
-              BLOCK_DEVICE: /dev/sda1
+              BLOCK_DEVICE: /dev/sda2
               FS_TYPE: ext4
