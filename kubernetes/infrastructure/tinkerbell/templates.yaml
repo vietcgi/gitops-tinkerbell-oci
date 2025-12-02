@@ -21,12 +21,20 @@ spec:
         actions:
           - name: stream-ubuntu-image
             image: quay.io/tinkerbell/actions/image2disk:latest
-            timeout: 300
+            timeout: 1800
             environment:
               DEST_DISK: /dev/sda
-              # Pre-converted raw.gz hosted locally for fast provisioning (~1-2 min vs 22 min)
-              IMG_URL: https://hookos.qualityspace.com/noble.raw.gz
-              COMPRESSED: true
+              # Use official Ubuntu cloud image directly (slower but more reliable)
+              IMG_URL: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+              COMPRESSED: "false"
+          - name: grow-partition
+            image: quay.io/tinkerbell/actions/cexec:latest
+            timeout: 90
+            environment:
+              BLOCK_DEVICE: /dev/sda1
+              FS_TYPE: ext4
+              CHROOT: "n"
+              CMD_LINE: growpart /dev/sda 1 && resize2fs /dev/sda1
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
@@ -53,6 +61,7 @@ spec:
               UID: "0"
               GID: "0"
               MODE: "0644"
+              DIRMODE: "0755"
           - name: write-cloud-init-meta
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
