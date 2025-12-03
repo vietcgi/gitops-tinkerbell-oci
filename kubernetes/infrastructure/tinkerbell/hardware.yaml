@@ -19,7 +19,7 @@ spec:
         mac: 00:0c:29:73:03:4b
         uefi: true
       netboot:
-        allowPXE: true
+        allowPXE: false
         allowWorkflow: true
   metadata:
     facility:
@@ -46,7 +46,7 @@ spec:
           gateway: 108.181.38.65
           netmask: 255.255.255.224
         mac: 00:21:9b:a1:dc:c0
-        uefi: true
+        uefi: false
       netboot:
         allowPXE: true
         allowWorkflow: true
