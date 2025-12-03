@@ -101,9 +101,9 @@ log_info "Waiting for workflow to start..."
 sleep 5
 
 # ============================================================================
-# PHASE 1: Wait for workflow to reach kexec action
+# PHASE 1: Wait for workflow to reach grub/reboot action or complete
 # ============================================================================
-log_info "Phase 1: Monitoring workflow until kexec action..."
+log_info "Phase 1: Monitoring workflow until grub-install action..."
 
 START_TIME=$(date +%s)
 while true; do
@@ -123,9 +123,15 @@ while true; do
         exit 1
     fi
 
-    # Check if we've reached kexec action
-    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == *"kexec"* ]]; then
-        log_success "Kexec action detected - moving to phase 2"
+    # Workflow completed successfully (cexec reports success before reboot terminates HookOS)
+    if [ "$STATE" == "SUCCESS" ]; then
+        log_success "Workflow completed with SUCCESS - moving to phase 2"
+        break
+    fi
+
+    # Check if we've reached grub-install action
+    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == *"grub"* ]]; then
+        log_success "GRUB install action detected - moving to phase 2"
         break
     fi
 
@@ -134,9 +140,9 @@ while true; do
 done
 
 # ============================================================================
-# PHASE 2: Wait for server to go OFFLINE (kexec terminates HookOS)
+# PHASE 2: Wait for server to go OFFLINE (reboot terminates HookOS)
 # ============================================================================
-log_info "Phase 2: Waiting for server to go offline (kexec terminating HookOS)..."
+log_info "Phase 2: Waiting for server to go offline (reboot terminating HookOS)..."
 
 KEXEC_START_TIME=$(date +%s)
 while true; do
