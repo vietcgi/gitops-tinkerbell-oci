@@ -121,19 +121,25 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Kexec boots directly into installed OS kernel - bypasses BIOS/PXE entirely
-          # This is the correct solution since we use ISC DHCP (not Smee's DHCP)
-          # NOTE: Ubuntu cloud images use sda16 for /boot (separate boot partition)
-          - name: kexec-into-os
-            image: quay.io/tinkerbell/actions/kexec:latest
-            timeout: 90
+          # Install GRUB bootloader using cexec (chroot) - this reports SUCCESS to workflow
+          # Boot partition is sda16 on Ubuntu cloud images
+          - name: install-grub
+            image: quay.io/tinkerbell/actions/cexec:latest
+            timeout: 120
             pid: host
             environment:
               BLOCK_DEVICE: /dev/sda16
               FS_TYPE: ext4
-              KERNEL_PATH: /vmlinuz
-              INITRD_PATH: /initrd.img
-              CMD_LINE: "root=/dev/sda1 ro console=tty0 console=ttyS0,115200"
+              CHROOT: "y"
+              DEFAULT_INTERPRETER: "/bin/bash -c"
+              CMD_LINE: "grub-install /dev/sda && update-grub"
+          # Reboot using nsenter (host namespace) - actually reboots the machine
+          # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
+          - name: reboot-into-os
+            image: justincormack/nsenter1
+            timeout: 30
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
 # Uses nsenter to refresh partition table after image2disk (fixes mount failures)
@@ -256,16 +262,22 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Kexec boots directly into installed OS kernel - bypasses BIOS/PXE entirely
-          # This is the correct solution since we use ISC DHCP (not Smee's DHCP)
-          # NOTE: Ubuntu cloud images use sda16 for /boot (separate boot partition)
-          - name: kexec-into-os
-            image: quay.io/tinkerbell/actions/kexec:latest
-            timeout: 90
+          # Install GRUB bootloader using cexec (chroot) - this reports SUCCESS to workflow
+          # Boot partition is sda16 on Ubuntu cloud images
+          - name: install-grub
+            image: quay.io/tinkerbell/actions/cexec:latest
+            timeout: 120
             pid: host
             environment:
               BLOCK_DEVICE: /dev/sda16
               FS_TYPE: ext4
-              KERNEL_PATH: /vmlinuz
-              INITRD_PATH: /initrd.img
-              CMD_LINE: "root=/dev/sda1 ro console=tty0 console=ttyS0,115200"
+              CHROOT: "y"
+              DEFAULT_INTERPRETER: "/bin/bash -c"
+              CMD_LINE: "grub-install /dev/sda && update-grub"
+          # Reboot using nsenter (host namespace) - actually reboots the machine
+          # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
+          - name: reboot-into-os
+            image: justincormack/nsenter1
+            timeout: 30
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]

@@ -129,9 +129,9 @@ while true; do
         break
     fi
 
-    # Check if we've reached kexec or grub action (final boot step)
-    # kexec never completes - it boots directly into the new kernel and terminates HookOS
-    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == *"kexec"* || "$CURRENT_ACTION" == *"grub"* ]]; then
+    # Check if we've reached final boot step (kexec/grub/reboot action)
+    # These actions terminate HookOS - either via kexec or nsenter reboot
+    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == *"kexec"* || "$CURRENT_ACTION" == *"grub"* || "$CURRENT_ACTION" == *"reboot"* ]]; then
         log_success "Boot action detected ($CURRENT_ACTION) - moving to phase 2"
         break
     fi
