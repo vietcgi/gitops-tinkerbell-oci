@@ -114,6 +114,8 @@ spec:
                 runcmd:
                   - systemctl enable qemu-guest-agent
                   - systemctl start qemu-guest-agent
+                  # Tinkerbell provisioning marker - proves this is a fresh install
+                  - echo "tinkerbell_provisioned=$(date +%s)" > /var/lib/tinkerbell-provisioned
               UID: "0"
               GID: "0"
               MODE: "0644"
@@ -247,6 +249,8 @@ spec:
                 runcmd:
                   - systemctl enable qemu-guest-agent
                   - systemctl start qemu-guest-agent
+                  # Tinkerbell provisioning marker - proves this is a fresh install
+                  - echo "tinkerbell_provisioned=$(date +%s)" > /var/lib/tinkerbell-provisioned
               UID: "0"
               GID: "0"
               MODE: "0644"
