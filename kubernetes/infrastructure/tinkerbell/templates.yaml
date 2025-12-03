@@ -144,6 +144,9 @@ spec:
                 mount -t sysfs sys /mnt/sys
                 mount --bind /dev /mnt/dev
                 mount --bind /dev/pts /mnt/dev/pts
+                # Install grub-pc package (cloud images only have grub-efi)
+                chroot /mnt apt-get update
+                chroot /mnt apt-get install -y grub-pc
                 # Install GRUB for Legacy BIOS (i386-pc target) to MBR
                 chroot /mnt grub-install --target=i386-pc /dev/sda
                 chroot /mnt update-grub
