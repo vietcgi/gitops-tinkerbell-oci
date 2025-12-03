@@ -121,17 +121,13 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Install GRUB bootloader using cexec (chroot into root partition sda1)
-          - name: install-grub
-            image: quay.io/tinkerbell/actions/cexec:latest
+          # Install GRUB bootloader for UEFI using nsenter (mount EFI partition first)
+          # Ubuntu cloud images use sda15 for EFI System Partition
+          - name: install-grub-uefi
+            image: justincormack/nsenter1
             timeout: 120
             pid: host
-            environment:
-              BLOCK_DEVICE: /dev/sda1
-              FS_TYPE: ext4
-              CHROOT: "y"
-              DEFAULT_INTERPRETER: "/bin/bash -c"
-              CMD_LINE: "grub-install /dev/sda && update-grub"
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ubuntu --no-nvram && chroot /mnt update-grub && umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt"]
           # Reboot using nsenter (host namespace) - actually reboots the machine
           # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
           - name: reboot-into-os

@@ -101,9 +101,9 @@ log_info "Waiting for workflow to start..."
 sleep 5
 
 # ============================================================================
-# PHASE 1: Wait for workflow to reach kexec/grub action or complete
+# PHASE 1: Wait for workflow to reach reboot-into-os or kexec action
 # ============================================================================
-log_info "Phase 1: Monitoring workflow until kexec/grub action..."
+log_info "Phase 1: Monitoring workflow until reboot-into-os action..."
 
 START_TIME=$(date +%s)
 while true; do
@@ -129,9 +129,9 @@ while true; do
         break
     fi
 
-    # Check if we've reached final boot step (kexec/grub/reboot action)
-    # These actions terminate HookOS - either via kexec or nsenter reboot
-    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == *"kexec"* || "$CURRENT_ACTION" == *"grub"* || "$CURRENT_ACTION" == *"reboot"* ]]; then
+    # Check if we've reached final boot step (reboot-into-os or kexec action)
+    # Only match exact action names that terminate HookOS
+    if [ "$STATE" == "RUNNING" ] && [[ "$CURRENT_ACTION" == "reboot-into-os" || "$CURRENT_ACTION" == *"kexec"* ]]; then
         log_success "Boot action detected ($CURRENT_ACTION) - moving to phase 2"
         break
     fi
