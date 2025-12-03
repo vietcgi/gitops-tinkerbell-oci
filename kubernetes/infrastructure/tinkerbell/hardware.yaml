@@ -21,6 +21,7 @@ spec:
       netboot:
         allowPXE: false
         allowWorkflow: false
+      disableDhcp: false
   metadata:
     facility:
       facility_code: colo
@@ -48,8 +49,9 @@ spec:
         mac: 00:21:9b:a1:dc:c0
         uefi: false
       netboot:
-        allowPXE: true
-        allowWorkflow: true
+        allowPXE: false
+        allowWorkflow: false
+      disableDhcp: false
   metadata:
     facility:
       facility_code: colo

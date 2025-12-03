@@ -2,85 +2,98 @@
 
 ## Problem: Re-provisioning Loop
 
-Due to using ISC DHCP (not Smee DHCP), the `toggleAllowNetboot` feature and `allowPXE` settings in Hardware resources **do not affect DHCP boot behavior**. The ISC DHCP server will always serve PXE boot options to bare metal machines regardless of these settings.
+Due to using ISC DHCP (not Smee DHCP), servers will always attempt PXE boot if the DHCP server provides boot options. Even after successful provisioning, if `allowPXE: true` is set in the Hardware resource, the server will re-provision on every reboot.
 
-## Solution: Manual Toggle Workflow
+## Solution: Automated PXE Toggle
 
-### Default State (in Git)
-Hardware definitions should have PXE **disabled** by default:
-```yaml
-netboot:
-  allowPXE: false
-  allowWorkflow: false
+The `netboot` configuration is **NOT managed by Flux** (removed from Git). Instead, the `provision-server.sh` script automatically:
+1. Enables PXE before provisioning
+2. Monitors the workflow
+3. Disables PXE after success (or failure)
+
+This prevents reprovisioning loops without manual Git commits.
+
+## One-Time Setup
+
+After deploying this configuration for the first time:
+
+```bash
+# Initialize netboot configuration (only needed once)
+ssh ubuntu@170.9.8.103 "bash -s" < scripts/init-netboot.sh
 ```
 
-### When You Need to Provision/Re-provision
+## Provisioning a Server
 
-1. **Enable PXE in Git**:
-   ```bash
-   # Edit hardware.yaml
-   vim kubernetes/infrastructure/tinkerbell/hardware.yaml
-   
-   # Change to:
-   netboot:
-     allowPXE: true
-     allowWorkflow: true
-   
-   # Commit and push
-   git add kubernetes/infrastructure/tinkerbell/hardware.yaml
-   git commit -m "temp: enable PXE for colo-server-01 reprovisioning"
-   git push
-   ```
+Simply run the provision script - it handles everything automatically:
 
-2. **Apply the Workflow**:
-   ```bash
-   # Let Flux sync or manually reconcile
-   ssh ubuntu@170.9.8.103 "flux reconcile kustomization infrastructure --with-source"
-   
-   # Create/apply the workflow
-   kubectl apply -f kubernetes/infrastructure/tinkerbell/workflows.yaml
-   ```
+```bash
+# From your local machine
+ssh ubuntu@170.9.8.103 "kubectl apply -f - && bash /tmp/provision.sh /tmp/workflow.yaml" < <(
+  cat kubernetes/infrastructure/tinkerbell/workflows.yaml
+  echo "---"
+  cat scripts/provision-server.sh
+)
 
-3. **Reboot the Server**:
-   ```bash
-   # Power cycle or reboot the bare metal machine
-   ssh root@108.181.38.85 "reboot"
-   # Or use IPMI/iDRAC to power cycle
-   ```
+# Or if you have the repo cloned on the OCI server:
+ssh ubuntu@170.9.8.103 "cd /path/to/gitops-metal-foundry && bash scripts/provision-server.sh kubernetes/infrastructure/tinkerbell/workflows.yaml"
+```
 
-4. **Monitor Progress**:
-   ```bash
-   ssh ubuntu@170.9.8.103 "kubectl get workflow colo-server-01-ubuntu -n tink-system -o wide"
-   ```
+## What the Script Does
 
-5. **After Successful Provisioning - Disable PXE**:
-   ```bash
-   # Immediately disable PXE in Git
-   vim kubernetes/infrastructure/tinkerbell/hardware.yaml
-   
-   # Change to:
-   netboot:
-     allowPXE: false
-     allowWorkflow: false
-   
-   # Commit and push
-   git add kubernetes/infrastructure/tinkerbell/hardware.yaml
-   git commit -m "fix: disable PXE after successful provisioning"
-   git push
-   
-   # Sync
-   ssh ubuntu@170.9.8.103 "flux reconcile kustomization infrastructure --with-source"
-   ```
+1. ✅ Extracts hardware name from workflow file
+2. ✅ Enables `allowPXE: true` and `allowWorkflow: true`
+3. ✅ Applies the workflow
+4. ✅ Monitors workflow progress (shows status every 10s)
+5. ✅ On SUCCESS: Disables PXE, deletes workflow, exits with success
+6. ✅ On FAILURE: Disables PXE, exits with error
 
-6. **Delete the Workflow** (optional cleanup):
-   ```bash
-   ssh ubuntu@170.9.8.103 "kubectl delete workflow colo-server-01-ubuntu -n tink-system"
-   ```
+## Manual Provisioning (if needed)
 
-## Why Kexec Helps (Partially)
+If you prefer manual control:
 
-The `kexec-into-os` action boots directly into the installed OS kernel, bypassing BIOS/PXE for that **initial** boot. This allows the provisioning to complete successfully. However, if you manually reboot the server later, it will still try to PXE boot if `allowPXE: true` is still set in Git.
+```bash
+# 1. Enable PXE
+kubectl patch hardware colo-server-01 -n tink-system --type=json -p='[
+  {"op": "replace", "path": "/spec/interfaces/0/netboot/allowPXE", "value": true},
+  {"op": "replace", "path": "/spec/interfaces/0/netboot/allowWorkflow", "value": true}
+]'
 
-## Alternative: DHCP Configuration
+# 2. Apply workflow
+kubectl apply -f kubernetes/infrastructure/tinkerbell/workflows.yaml
 
-You could also configure your ISC DHCP server to conditionally serve PXE only when needed, but that requires more complex DHCP configuration and external state management.
+# 3. Reboot the server
+ssh root@108.181.38.85 "reboot"
+
+# 4. Monitor
+kubectl get workflow colo-server-01-ubuntu -n tink-system -o wide
+
+# 5. After success, disable PXE
+kubectl patch hardware colo-server-01 -n tink-system --type=json -p='[
+  {"op": "replace", "path": "/spec/interfaces/0/netboot/allowPXE", "value": false},
+  {"op": "replace", "path": "/spec/interfaces/0/netboot/allowWorkflow", "value": false}
+]'
+```
+
+## Why This Works
+
+- **Flux doesn't manage netboot**: The `netboot` field is removed from `hardware.yaml` in Git
+- **Script controls PXE state**: Dynamically enables/disables based on provisioning state
+- **No Git commits needed**: All state changes happen via `kubectl patch`
+- **Fallback in iPXE**: If Smee returns 404 (no workflow or allowPXE=false), iPXE boots from disk
+
+## Troubleshooting
+
+### Server keeps re-provisioning
+Check if allowPXE is still enabled:
+```bash
+kubectl get hardware colo-server-01 -n tink-system -o jsonpath='{.spec.interfaces[0].netboot}'
+```
+
+Should show: `{"allowPXE":false,"allowWorkflow":false}`
+
+### Workflow stuck in PENDING
+The tink-worker might not be running. Check logs:
+```bash
+ssh root@108.181.38.85 "nerdctl -n services.linuxkit exec hook-docker docker logs tink-worker --tail=50"
+```
+
