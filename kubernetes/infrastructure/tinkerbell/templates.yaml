@@ -326,8 +326,10 @@ spec:
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mkdir -p /tmp/harvester && cd /tmp/harvester && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-vmlinuz-amd64 -O vmlinuz && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-initrd-bnx2-amd64 -O initrd && echo 'Downloaded:' && ls -la /tmp/harvester/"]
           # Kexec into Harvester installer
           # The kernel cmdline tells Harvester where to get rootfs and config
+          # Using static IP because DHCP times out before dracut can fetch rootfs
+          # Format: ip=<client-ip>::<gateway>:<netmask>:<hostname>:<device>:none
           - name: kexec-harvester
             image: justincormack/nsenter1
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/harvester/vmlinuz --initrd=/tmp/harvester/initrd --command-line='ip=dhcp net.ifnames=1 rd.cos.disable rd.noverifyssl console=tty1 root=live:http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-amd64.squashfs harvester.install.automatic=true harvester.install.config_url=http://108.181.38.67:8081/harvester/config-create.yaml harvester.install.skipchecks=true' && kexec -e"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/harvester/vmlinuz --initrd=/tmp/harvester/initrd --command-line='ip=108.181.38.87::108.181.38.65:255.255.255.224:anvil:eno1:none net.ifnames=1 rd.cos.disable rd.noverifyssl console=tty1 root=live:http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-amd64.squashfs harvester.install.automatic=true harvester.install.config_url=http://108.181.38.67:8081/harvester/config-create.yaml harvester.install.skipchecks=true' && kexec -e"]
