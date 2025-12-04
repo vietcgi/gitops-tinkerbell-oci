@@ -30,3 +30,18 @@ spec:
   # Automatically disable PXE boot after workflow completes
   bootOptions:
     toggleAllowNetboot: true
+---
+# Workflow for anvil (Dell R610) Harvester HCI installation
+apiVersion: tinkerbell.org/v1alpha1
+kind: Workflow
+metadata:
+  name: anvil-harvester
+  namespace: tink-system
+spec:
+  templateRef: anvil-harvester
+  hardwareRef: anvil
+  hardwareMap:
+    device_1: 00:21:9b:a1:dc:c0
+    hostname: anvil
+  bootOptions:
+    toggleAllowNetboot: true

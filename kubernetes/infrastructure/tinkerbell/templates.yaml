@@ -290,3 +290,38 @@ spec:
             timeout: 30
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+---
+# Harvester HCI v1.6.1 Installation Template for anvil (Dell R610)
+# Downloads Harvester kernel/initrd and kexec's into the installer
+# Harvester's installer handles disk partitioning and installation
+apiVersion: tinkerbell.org/v1alpha1
+kind: Template
+metadata:
+  name: anvil-harvester
+  namespace: tink-system
+spec:
+  data: |
+    version: "0.1"
+    name: anvil-harvester
+    global_timeout: 1800
+    tasks:
+      - name: harvester-installation
+        worker: "{{.device_1}}"
+        volumes:
+          - /dev:/dev
+          - /dev/console:/dev/console
+          - /lib/firmware:/lib/firmware:ro
+        actions:
+          # Download Harvester kernel and initrd
+          - name: download-harvester-files
+            image: justincormack/nsenter1
+            timeout: 600
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mkdir -p /tmp/harvester && cd /tmp/harvester && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-vmlinuz-amd64 -O vmlinuz && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-initrd-amd64 -O initrd && echo 'Downloaded:' && ls -la /tmp/harvester/"]
+          # Kexec into Harvester installer
+          # The kernel cmdline tells Harvester where to get rootfs and config
+          - name: kexec-harvester
+            image: justincormack/nsenter1
+            timeout: 60
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/harvester/vmlinuz --initrd=/tmp/harvester/initrd --command-line='ip=dhcp net.ifnames=1 rd.cos.disable rd.noverifyssl console=tty1 root=live:http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-amd64.squashfs harvester.install.automatic=true harvester.install.config_url=http://108.181.38.67:8081/harvester/config-create.yaml harvester.install.skipchecks=true' && kexec -e"]
