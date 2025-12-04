@@ -22,8 +22,6 @@ case "$HARDWARE_NAME" in
         # Default to harvester for anvil, but allow override
         if [ -z "$WORKFLOW_TYPE" ] || [ "$WORKFLOW_TYPE" = "harvester" ]; then
             WORKFLOW_NAME="anvil-harvester"
-        elif [ "$WORKFLOW_TYPE" = "ubuntu" ]; then
-            WORKFLOW_NAME="anvil-ubuntu"
         else
             WORKFLOW_NAME="anvil-$WORKFLOW_TYPE"
         fi
