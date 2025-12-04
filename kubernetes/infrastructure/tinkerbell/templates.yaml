@@ -267,17 +267,13 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS, will try package install' && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && if [ ! -f /mnt/lib/firmware/bnx2/bnx2-mips-09-6.2.1b.fw ]; then chroot /mnt apt-get update && chroot /mnt apt-get install -y firmware-bnx2; fi && chroot /mnt update-initramfs -u -k all && echo 'Firmware files installed:' && ls -la /mnt/lib/firmware/bnx2/ && umount /mnt/sys /mnt/proc /mnt/dev /mnt"]
-          # Install GRUB bootloader using cexec (chroot into root partition sda1)
+          # Install GRUB bootloader for BIOS/MBR using nsenter
+          # Must bind mount /dev, /proc, /sys for grub-install to detect disk properly
           - name: install-grub
-            image: quay.io/tinkerbell/actions/cexec:latest
-            timeout: 120
+            image: justincormack/nsenter1
+            timeout: 180
             pid: host
-            environment:
-              BLOCK_DEVICE: /dev/sda1
-              FS_TYPE: ext4
-              CHROOT: "y"
-              DEFAULT_INTERPRETER: "/bin/bash -c"
-              CMD_LINE: "grub-install /dev/sda && update-grub"
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && echo 'nameserver 8.8.8.8' > /mnt/etc/resolv.conf && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub && umount /mnt/sys /mnt/proc /mnt/dev /mnt"]
           # Reboot using nsenter (host namespace) - actually reboots the machine
           # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
           - name: reboot-into-os
