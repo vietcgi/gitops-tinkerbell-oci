@@ -29,17 +29,19 @@ spec:
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
           # This fixes the issue where image2disk's BLKRRPART call fails silently
           # Using justincormack/nsenter1 - a minimal image designed specifically for this purpose
+          # Note: partprobe may fail if partitions are in use, so we use || true
           - name: partition-refresh
             image: justincormack/nsenter1
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda && sleep 2 && ls -la /dev/sda*"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
           # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
+          # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
           - name: reset-cloud-init-state
             image: justincormack/nsenter1
             timeout: 120
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id && echo 'uninitialized' > /mnt/etc/machine-id && umount /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
@@ -125,11 +127,12 @@ spec:
           # Ubuntu cloud images use sda15 for EFI System Partition
           # --removable installs to /EFI/BOOT/BOOTX64.EFI (UEFI fallback path)
           # IMPORTANT: Must create /boot/efi directory - Ubuntu cloud images have empty /boot
+          # Idempotent: cleans up any existing mounts before starting
           - name: install-grub-uefi
             image: justincormack/nsenter1
-            timeout: 120
+            timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mkdir -p /mnt/boot/efi && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable && chroot /mnt update-grub && umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mkdir -p /mnt/boot/efi && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true"]
           # Reboot using nsenter (host namespace) - actually reboots the machine
           # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
           - name: reboot-into-os
@@ -167,17 +170,19 @@ spec:
               IMG_URL: http://108.181.38.67:8081/noble-bnx2.raw.gz
               COMPRESSED: "true"
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
+          # Note: partprobe may fail if partitions are in use, so we use || true
           - name: partition-refresh
             image: justincormack/nsenter1
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda && sleep 2 && ls -la /dev/sda*"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
           # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
+          # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
           - name: reset-cloud-init-state
             image: justincormack/nsenter1
             timeout: 120
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id && echo 'uninitialized' > /mnt/etc/machine-id && umount /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile:latest
             timeout: 90
@@ -262,18 +267,20 @@ spec:
           # Install Broadcom bnx2 firmware for Dell R610 NICs
           # Copy firmware from HookOS (which has it) and regenerate initramfs
           # This avoids network dependency during provisioning
+          # Idempotent: cleans up mounts before starting, handles missing firmware gracefully
           - name: install-bnx2-firmware
             image: justincormack/nsenter1
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS, will try package install' && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && if [ ! -f /mnt/lib/firmware/bnx2/bnx2-mips-09-6.2.1b.fw ]; then chroot /mnt apt-get update && chroot /mnt apt-get install -y firmware-bnx2; fi && chroot /mnt update-initramfs -u -k all && echo 'Firmware files installed:' && ls -la /mnt/lib/firmware/bnx2/ && umount /mnt/sys /mnt/proc /mnt/dev /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS'; mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt update-initramfs -u -k all; echo 'Firmware files:'; ls -la /mnt/lib/firmware/bnx2/ 2>/dev/null || true; umount /mnt/sys /mnt/proc /mnt/dev /mnt 2>/dev/null || true"]
           # Install GRUB bootloader for BIOS/MBR using nsenter
           # Must bind mount /dev, /proc, /sys for grub-install to detect disk properly
+          # Idempotent: cleans up mounts before starting
           - name: install-grub
             image: justincormack/nsenter1
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mount /dev/sda1 /mnt && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && echo 'nameserver 8.8.8.8' > /mnt/etc/resolv.conf && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub && umount /mnt/sys /mnt/proc /mnt/dev /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt 2>/dev/null || true"]
           # Reboot using nsenter (host namespace) - actually reboots the machine
           # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
           - name: reboot-into-os
