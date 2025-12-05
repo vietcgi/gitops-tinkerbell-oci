@@ -337,7 +337,7 @@ spec:
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/harvester/vmlinuz --initrd=/tmp/harvester/initrd --command-line='ip=108.181.38.87::108.181.38.65:255.255.255.224:anvil:eth0:none net.ifnames=0 biosdevname=0 pci=nomsi rd.cos.disable rd.noverifyssl console=tty1 root=live:http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-bnx2-amd64.squashfs harvester.install.automatic=true harvester.install.config_url=http://108.181.38.67:8081/harvester/config-create.yaml harvester.install.skipchecks=true' && kexec -e"]
 ---
 # Talos Linux v1.11.5 Installation Template for Dell R610 (anvil)
-# Minimal, immutable Kubernetes OS - much simpler than Harvester
+# Uses iPXE boot (no HookOS/kexec) - Tinkerbell controls when to boot Talos
 # Talos handles disk partitioning, installation, and cluster bootstrap
 apiVersion: tinkerbell.org/v1alpha1
 kind: Template
@@ -345,35 +345,12 @@ metadata:
   name: talos
   namespace: tink-system
 spec:
-  data: |
-    version: "0.1"
-    name: talos
-    global_timeout: 1800
-    tasks:
-      - name: talos-installation
-        worker: "{{.device_1}}"
-        volumes:
-          - /dev:/dev
-          - /dev/console:/dev/console
-          - /lib/firmware:/lib/firmware:ro
-        actions:
-          # Install kexec-tools using Alpine apk (HookOS is Alpine-based)
-          - name: install-kexec-tools
-            image: justincormack/nsenter1
-            timeout: 120
-            pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "/sbin/apk add --no-cache kexec-tools && /usr/sbin/kexec --version"]
-          # Download Talos kernel and initramfs
-          - name: download-talos-files
-            image: justincormack/nsenter1
-            timeout: 600
-            pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mkdir -p /tmp/talos && cd /tmp/talos && wget -q http://108.181.38.67:8081/talos/vmlinuz-amd64 -O vmlinuz && wget -q http://108.181.38.67:8081/talos/initramfs-amd64.xz -O initramfs.xz && echo 'Downloaded:' && ls -la /tmp/talos/"]
-          # Kexec into Talos installer
-          # Talos will fetch its machine config from the URL and install itself
-          # Using eth0 naming for Dell R610 Broadcom NICs compatibility
-          - name: kexec-talos
-            image: justincormack/nsenter1
-            timeout: 60
-            pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/talos/vmlinuz --initrd=/tmp/talos/initramfs.xz --command-line='init_on_alloc=1 slab_nomerge pti=on console=tty0 console=ttyS1,115200n8 talos.platform=metal net.ifnames=0 biosdevname=0 talos.config=http://108.181.38.67:8081/talos/controlplane.yaml' && kexec -e"]
+  # iPXE boot template - Tinkerbell serves this script instead of HookOS
+  # When workflow is active, Smee returns this iPXE script to boot Talos directly
+  ipxe: |
+    #!ipxe
+    echo Tinkerbell: Booting Talos Linux v1.11.5 for {{.device_1}}
+    set base http://108.181.38.67:8081/talos
+    kernel ${base}/vmlinuz-amd64 talos.platform=metal talos.config=${base}/controlplane.yaml net.ifnames=0 biosdevname=0 console=tty0 console=ttyS1,115200n8 init_on_alloc=1 slab_nomerge pti=on initrd=initramfs-amd64.xz
+    initrd ${base}/initramfs-amd64.xz
+    boot
