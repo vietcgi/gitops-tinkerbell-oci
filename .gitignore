@@ -25,6 +25,7 @@ kubeconfig
 *.key
 *secret*
 !kubernetes/infrastructure/sealed-secrets/
+!kubernetes/apps/**/sealed-secret.yaml
 credentials*
 .env
 .env.*
