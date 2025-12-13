@@ -4,19 +4,6 @@ kind: Namespace
 metadata:
   name: n8n
 ---
-# OAuth2 Proxy Secret (GitHub OAuth credentials)
-# TODO: Replace with SealedSecret for production
-apiVersion: v1
-kind: Secret
-metadata:
-  name: oauth2-proxy-secrets
-  namespace: n8n
-type: Opaque
-stringData:
-  client-id: "Ov23ligiUyY6ire7m9FD"
-  client-secret: "967824ef04184f874469a8b442911cf18f86d0dd"
-  cookie-secret: "7djGhwONRH6WhLq5Yj0HdVykj/8W6bgM"
----
 # OAuth2 Proxy - GitHub authentication in front of n8n
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
