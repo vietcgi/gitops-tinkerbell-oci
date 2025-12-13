@@ -71,6 +71,12 @@ spec:
     # Timezone for scheduled workflows
     timezone: "America/Los_Angeles"
 
+    # Trust proxy (behind OAuth2 Proxy + Cilium Gateway)
+    extraEnvVars:
+      N8N_PROTOCOL: "https"
+      N8N_HOST: "n8n.qualityspace.com"
+      N8N_PROXY_HOPS: "2"
+
     # Main n8n instance configuration
     main:
       # Persistence for workflow data
