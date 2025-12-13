@@ -15,7 +15,7 @@ type: Opaque
 stringData:
   client-id: "Ov23ligiUyY6ire7m9FD"
   client-secret: "967824ef04184f874469a8b442911cf18f86d0dd"
-  cookie-secret: "Ywq0X7+iZNFmN9Yu6vWx/2J5QGAUkYiXnrvo7r4rXzc="
+  cookie-secret: "7djGhwONRH6WhLq5Yj0HdVykj/8W6bgM"
 ---
 # OAuth2 Proxy - GitHub authentication in front of n8n
 apiVersion: helm.toolkit.fluxcd.io/v2
