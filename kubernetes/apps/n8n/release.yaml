@@ -1,0 +1,145 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n
+---
+# OAuth2 Proxy Secret (GitHub OAuth credentials)
+# TODO: Replace with SealedSecret for production
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth2-proxy-secrets
+  namespace: n8n
+type: Opaque
+stringData:
+  client-id: "Ov23ligiUyY6ire7m9FD"
+  client-secret: "967824ef04184f874469a8b442911cf18f86d0dd"
+  cookie-secret: "Ywq0X7+iZNFmN9Yu6vWx/2J5QGAUkYiXnrvo7r4rXzc="
+---
+# OAuth2 Proxy - GitHub authentication in front of n8n
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: oauth2-proxy
+  namespace: n8n
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: oauth2-proxy
+      version: "9.0.1"
+      sourceRef:
+        kind: HelmRepository
+        name: oauth2-proxy
+        namespace: flux-system
+  values:
+    config:
+      existingSecret: oauth2-proxy-secrets
+      configFile: |-
+        provider = "github"
+        email_domains = ["*"]
+        upstreams = ["http://n8n:5678"]
+        cookie_secure = true
+        cookie_domains = [".qualityspace.com"]
+        whitelist_domains = [".qualityspace.com"]
+
+    # Restrict to specific GitHub user(s)
+    extraArgs:
+      github-user: "vietcgi"
+
+    service:
+      type: ClusterIP
+      portNumber: 80
+
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+---
+# n8n - Workflow Automation Tool
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: n8n
+      version: "1.16.10"
+      sourceRef:
+        kind: HelmRepository
+        name: community-charts
+        namespace: flux-system
+  values:
+    # Webhook URL for external access
+    webhook:
+      url: "https://n8n.qualityspace.com"
+
+    # Timezone for scheduled workflows
+    timezone: "America/Los_Angeles"
+
+    # Main n8n instance configuration
+    main:
+      # Persistence for workflow data
+      persistence:
+        enabled: true
+        storageClass: local-path
+        size: 5Gi
+
+      # Resource limits for free tier
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 5678
+---
+# HTTPRoute for n8n via OAuth2 Proxy (HTTPS)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: n8n-route
+  namespace: n8n
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https
+  hostnames:
+    - n8n.qualityspace.com
+  rules:
+    - backendRefs:
+        - name: oauth2-proxy
+          port: 80
+---
+# HTTP to HTTPS redirect for n8n
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: n8n-redirect
+  namespace: n8n
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http
+  hostnames:
+    - n8n.qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
