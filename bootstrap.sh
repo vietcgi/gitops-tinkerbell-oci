@@ -12,7 +12,7 @@
 #   ./bootstrap.sh
 #
 # Or run directly:
-#   curl -sSL https://raw.githubusercontent.com/vietcgi/gitops-metal-foundry/main/bootstrap.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/vietcgi/gitops-tinkerbell-oci/main/bootstrap.sh | bash
 #
 
 set -euo pipefail

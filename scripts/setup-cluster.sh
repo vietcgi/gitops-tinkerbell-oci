@@ -23,7 +23,7 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 # Configuration
 #=============================================================================
 GITHUB_OWNER="${1:-vietcgi}"
-GITHUB_REPO="${2:-gitops-metal-foundry}"
+GITHUB_REPO="${2:-gitops-tinkerbell-oci}"
 BRANCH="main"
 CLUSTER_PATH="kubernetes"
 REPO_URL="https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"

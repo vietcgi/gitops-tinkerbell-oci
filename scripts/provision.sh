@@ -11,7 +11,7 @@ set -e
 HARDWARE_NAME=${1:-colo-server-01}
 WORKFLOW_TYPE=${2:-}
 OCI_SERVER="ubuntu@170.9.8.103"
-REPO_DIR="/home/ubuntu/gitops-metal-foundry"
+REPO_DIR="/home/ubuntu/gitops-tinkerbell-oci"
 WORKFLOW_FILE="$REPO_DIR/kubernetes/infrastructure/tinkerbell/workflows.yaml"
 
 case "$HARDWARE_NAME" in

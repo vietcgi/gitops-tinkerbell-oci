@@ -8,7 +8,7 @@ region           = "us-sanjose-1"
 
 # GitHub for OIDC (informational - auth via API key)
 github_owner = "vietcgi"
-github_repo  = "gitops-metal-foundry"
+github_repo  = "gitops-tinkerbell-oci"
 
 # SSH public key for VM access
 ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC5/lrhHAQdTRfppzfA7Emn/hcSHobEpl6LzNFsxD9Pi0+sRT8K2shdwZ02vk+eZT3chi6Pwf5Cb82/NS7yLlq4eUxG/IKp1HxVKTdTQgA3E0HF/mmwveCnuR55iUvNNliRyWbBnY/uw5yfhVrDIyAwP+rE16M/ROlorbskJ4R6fFMr4M4o2PjAFL2KH+1lnMrtbNoovqg7/xLBhiDGhs6sNHl4E34PHICkH7Xqkh+7TCDbpjDGxMuNL5RG1zMG1fLFfJX0QIQanN2jHJU2NEMBVWB+BxNYWKWACHQevubER8KdxksBj3Newi65zx2enDoKNE6kpzi2lqPdDpUXwwVf kevin-on-kevin"
