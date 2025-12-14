@@ -70,6 +70,29 @@ spec:
           label: grafana_dashboard
         datasources:
           enabled: true
+      # Import dashboards from grafana.com
+      dashboardProviders:
+        dashboardproviders.yaml:
+          apiVersion: 1
+          providers:
+            - name: grafana-dashboards
+              orgId: 1
+              folder: "Node Exporter"
+              type: file
+              disableDeletion: false
+              editable: true
+              options:
+                path: /var/lib/grafana/dashboards/grafana-dashboards
+      dashboards:
+        grafana-dashboards:
+          node-exporter-full:
+            gnetId: 1860
+            revision: 37
+            datasource: Prometheus
+          node-exporter-en:
+            gnetId: 11074
+            revision: 9
+            datasource: Prometheus
       # Load GitHub OAuth credentials from secret
       envFromSecret: grafana-oauth-secrets
       # Behind Cloudflare proxy - tell Grafana to use HTTPS URLs
