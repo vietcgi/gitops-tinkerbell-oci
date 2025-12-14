@@ -63,6 +63,13 @@ spec:
       # Disable the init-chown-data container - fsGroup handles permissions
       initChownData:
         enabled: false
+      # Enable sidecar for loading dashboards from ConfigMaps
+      sidecar:
+        dashboards:
+          enabled: true
+          label: grafana_dashboard
+        datasources:
+          enabled: true
       # Behind Cloudflare proxy - tell Grafana to use HTTPS URLs
       grafana.ini:
         server:
