@@ -11,7 +11,7 @@ data:
       "id": null,
       "uid": "client-network",
       "title": "Client Network Monitoring",
-      "tags": ["client", "network", "monitoring"],
+      "tags": ["client", "network", "monitoring", "eero"],
       "timezone": "browser",
       "refresh": "30s",
       "time": {
@@ -20,10 +20,220 @@ data:
       },
       "panels": [
         {
-          "id": 1,
-          "title": "Network Device Status",
+          "id": 10,
+          "title": "Eero Mesh Node Status",
           "type": "stat",
           "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "eero_node_status{site=\"client-network\"}",
+              "legendFormat": "{{location}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {"options": {"0": {"text": "OFFLINE", "color": "red"}}, "type": "value"},
+                {"options": {"1": {"text": "ONLINE", "color": "green"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 11,
+          "title": "Internet Speed - Download",
+          "type": "gauge",
+          "gridPos": {"h": 5, "w": 6, "x": 0, "y": 4},
+          "targets": [
+            {
+              "expr": "eero_speed_download_mbps{site=\"client-network\"}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Mbps",
+              "min": 0,
+              "max": 1000,
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 100},
+                  {"color": "green", "value": 500}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Internet Speed - Upload",
+          "type": "gauge",
+          "gridPos": {"h": 5, "w": 6, "x": 6, "y": 4},
+          "targets": [
+            {
+              "expr": "eero_speed_upload_mbps{site=\"client-network\"}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Mbps",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 10},
+                  {"color": "green", "value": 30}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 13,
+          "title": "Total Devices",
+          "type": "stat",
+          "gridPos": {"h": 5, "w": 6, "x": 12, "y": 4},
+          "targets": [
+            {
+              "expr": "eero_total_devices{site=\"client-network\"}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "blue", "value": null}
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "id": 14,
+          "title": "Online Devices",
+          "type": "stat",
+          "gridPos": {"h": 5, "w": 6, "x": 18, "y": 4},
+          "targets": [
+            {
+              "expr": "eero_online_devices{site=\"client-network\"}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center"
+          }
+        },
+        {
+          "id": 15,
+          "title": "Clients per Eero Node",
+          "type": "bargauge",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 9},
+          "targets": [
+            {
+              "expr": "eero_node_clients{site=\"client-network\"}",
+              "legendFormat": "{{location}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 10},
+                  {"color": "red", "value": 20}
+                ]
+              },
+              "min": 0,
+              "max": 30
+            }
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "id": 16,
+          "title": "Connected Devices",
+          "type": "table",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 9},
+          "targets": [
+            {
+              "expr": "eero_device_connected{site=\"client-network\"} == 1",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "host": true,
+                  "instance": true,
+                  "job": true,
+                  "site": true,
+                  "Value": true
+                },
+                "renameByName": {
+                  "name": "Device",
+                  "ip": "IP Address",
+                  "mac": "MAC Address"
+                }
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "left"
+              }
+            }
+          }
+        },
+        {
+          "id": 1,
+          "title": "Host Ping Status",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 15},
           "targets": [
             {
               "expr": "probe_success{site=\"client-network\"}",
@@ -55,7 +265,7 @@ data:
           "id": 2,
           "title": "Ping Latency (ms)",
           "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 19},
           "targets": [
             {
               "expr": "probe_duration_seconds{site=\"client-network\"} * 1000",
@@ -75,9 +285,9 @@ data:
         },
         {
           "id": 3,
-          "title": "Device Uptime",
+          "title": "Device Uptime %",
           "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
           "targets": [
             {
               "expr": "avg_over_time(probe_success{site=\"client-network\"}[5m]) * 100",
@@ -95,9 +305,9 @@ data:
         },
         {
           "id": 4,
-          "title": "Network Traffic - Received",
+          "title": "Host Network Traffic - Received",
           "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 27},
           "targets": [
             {
               "expr": "rate(node_network_receive_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
@@ -117,9 +327,9 @@ data:
         },
         {
           "id": 5,
-          "title": "Network Traffic - Transmitted",
+          "title": "Host Network Traffic - Transmitted",
           "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 27},
           "targets": [
             {
               "expr": "rate(node_network_transmit_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
@@ -139,9 +349,9 @@ data:
         },
         {
           "id": 6,
-          "title": "CPU Usage",
+          "title": "Host CPU Usage",
           "type": "gauge",
-          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 20},
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 35},
           "targets": [
             {
               "expr": "100 - (avg(rate(node_cpu_seconds_total{site=\"client-network\", mode=\"idle\"}[5m])) * 100)",
@@ -165,9 +375,9 @@ data:
         },
         {
           "id": 7,
-          "title": "Memory Usage",
+          "title": "Host Memory Usage",
           "type": "gauge",
-          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 20},
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 35},
           "targets": [
             {
               "expr": "(1 - (node_memory_MemAvailable_bytes{site=\"client-network\"} / node_memory_MemTotal_bytes{site=\"client-network\"})) * 100",
@@ -193,7 +403,7 @@ data:
           "id": 8,
           "title": "Network Errors",
           "type": "timeseries",
-          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 35},
           "targets": [
             {
               "expr": "rate(node_network_receive_errs_total{site=\"client-network\"}[5m])",
@@ -214,9 +424,9 @@ data:
         },
         {
           "id": 9,
-          "title": "Packet Loss",
+          "title": "Packet Loss %",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 26},
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 41},
           "targets": [
             {
               "expr": "(1 - avg_over_time(probe_success{site=\"client-network\"}[1h])) * 100",
