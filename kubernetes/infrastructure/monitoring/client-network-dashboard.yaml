@@ -18,150 +18,108 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "Internet Status",
+          "title": "Internet",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0},
+          "gridPos": {"h": 3, "w": 8, "x": 0, "y": 0},
           "targets": [{"expr": "eero_internet_status{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"}, {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}], "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}},
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value"}
         },
         {
           "id": 2,
-          "title": "ISP Link",
+          "title": "ISP",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 8, "x": 8, "y": 0},
+          "gridPos": {"h": 3, "w": 8, "x": 8, "y": 0},
           "targets": [{"expr": "eero_isp_status{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"}, {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}], "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}},
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value"}
         },
         {
           "id": 3,
-          "title": "Eero Network",
+          "title": "Eero Mesh",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 8, "x": 16, "y": 0},
+          "gridPos": {"h": 3, "w": 8, "x": 16, "y": 0},
           "targets": [{"expr": "eero_network_status{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "CONNECTED", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"}, {"options": {"1": {"text": "OK", "color": "green"}}, "type": "value"}], "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}},
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "value"}
         },
         {
           "id": 4,
-          "title": "Latency to Internet (ms)",
+          "title": "Latency (ms)",
           "type": "timeseries",
-          "gridPos": {"h": 8, "w": 16, "x": 0, "y": 4},
-          "targets": [
-            {"expr": "probe_latency_ms{site=\"client-network\"}", "legendFormat": "{{name}}", "refId": "A"}
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ms",
-              "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"},
-              "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 100}]}
-            }
-          }
+          "gridPos": {"h": 7, "w": 16, "x": 0, "y": 3},
+          "targets": [{"expr": "probe_latency_ms{site=\"client-network\"}", "legendFormat": "{{name}}", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 100}]}}}
         },
         {
           "id": 5,
-          "title": "Probe Status",
+          "title": "Probes",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 8, "x": 16, "y": 4},
+          "gridPos": {"h": 3, "w": 8, "x": 16, "y": 3},
           "targets": [{"expr": "probe_success{site=\"client-network\"}", "legendFormat": "{{name}}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "FAIL", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "OK", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "FAIL", "color": "red"}}, "type": "value"}, {"options": {"1": {"text": "OK", "color": "green"}}, "type": "value"}], "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}},
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center"}
         },
         {
           "id": 6,
-          "title": "Current Latency",
+          "title": "Avg Latency",
           "type": "gauge",
-          "gridPos": {"h": 4, "w": 8, "x": 16, "y": 8},
+          "gridPos": {"h": 4, "w": 8, "x": 16, "y": 6},
           "targets": [{"expr": "avg(probe_latency_ms{site=\"client-network\"})", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ms",
-              "min": 0,
-              "max": 100,
-              "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 30}, {"color": "red", "value": 60}]}
-            }
-          }
+          "fieldConfig": {"defaults": {"unit": "ms", "min": 0, "max": 100, "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 30}, {"color": "red", "value": 60}]}}}
+        },
+        {
+          "id": 14,
+          "title": "Network Bandwidth",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 16, "x": 0, "y": 10},
+          "targets": [
+            {"expr": "eero_network_download_rate_mbps{site=\"client-network\"}", "legendFormat": "Download", "refId": "A"},
+            {"expr": "eero_network_upload_rate_mbps{site=\"client-network\"}", "legendFormat": "Upload", "refId": "B"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "Mbps", "custom": {"lineWidth": 2, "fillOpacity": 20}, "thresholds": {"steps": [{"color": "green", "value": null}]}}}
+        },
+        {
+          "id": 15,
+          "title": "Download/hr",
+          "type": "stat",
+          "gridPos": {"h": 3, "w": 4, "x": 16, "y": 10},
+          "targets": [{"expr": "eero_network_download_bytes{site=\"client-network\"} / 1000000", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "MB", "thresholds": {"steps": [{"color": "blue", "value": null}]}}},
+          "options": {"colorMode": "value", "graphMode": "none"}
+        },
+        {
+          "id": 16,
+          "title": "Upload/hr",
+          "type": "stat",
+          "gridPos": {"h": 3, "w": 4, "x": 20, "y": 10},
+          "targets": [{"expr": "eero_network_upload_bytes{site=\"client-network\"} / 1000000", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "MB", "thresholds": {"steps": [{"color": "purple", "value": null}]}}},
+          "options": {"colorMode": "value", "graphMode": "none"}
         },
         {
           "id": 7,
-          "title": "Download Speed",
+          "title": "Speed Test",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 12},
-          "targets": [{"expr": "eero_speed_download_mbps{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "Mbps",
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 100}, {"color": "green", "value": 500}]}
-            }
-          },
+          "gridPos": {"h": 3, "w": 4, "x": 16, "y": 13},
+          "targets": [{"expr": "eero_speed_download_mbps{site=\"client-network\"}", "legendFormat": "Down", "refId": "A"}],
+          "fieldConfig": {"defaults": {"unit": "Mbps", "thresholds": {"steps": [{"color": "green", "value": null}]}}},
           "options": {"colorMode": "value", "graphMode": "none"}
         },
         {
           "id": 8,
-          "title": "Upload Speed",
+          "title": "Upload",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 12},
+          "gridPos": {"h": 3, "w": 4, "x": 20, "y": 13},
           "targets": [{"expr": "eero_speed_upload_mbps{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "Mbps",
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 10}, {"color": "green", "value": 30}]}
-            }
-          },
-          "options": {"colorMode": "value", "graphMode": "none"}
-        },
-        {
-          "id": 9,
-          "title": "Speed Test Age",
-          "type": "stat",
-          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 12},
-          "targets": [{"expr": "eero_speed_test_age_hours{site=\"client-network\"}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "h",
-              "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 24}, {"color": "red", "value": 72}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"unit": "Mbps", "thresholds": {"steps": [{"color": "green", "value": null}]}}},
           "options": {"colorMode": "value", "graphMode": "none"}
         },
         {
           "id": 10,
-          "title": "Devices Online",
+          "title": "Devices",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 12},
+          "gridPos": {"h": 3, "w": 8, "x": 0, "y": 16},
           "targets": [{"expr": "eero_online_devices{site=\"client-network\"}", "legendFormat": "Online", "refId": "A"}, {"expr": "eero_total_devices{site=\"client-network\"}", "legendFormat": "Total", "refId": "B"}],
           "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}},
           "options": {"colorMode": "value", "graphMode": "none"}
@@ -170,42 +128,36 @@ data:
           "id": 11,
           "title": "Eero Nodes",
           "type": "stat",
-          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 16},
+          "gridPos": {"h": 3, "w": 16, "x": 8, "y": 16},
           "targets": [{"expr": "eero_node_status{site=\"client-network\"}", "legendFormat": "{{location}}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "OFFLINE", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "ONLINE", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-            }
-          },
+          "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "OFF", "color": "red"}}, "type": "value"}, {"options": {"1": {"text": "ON", "color": "green"}}, "type": "value"}], "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}},
           "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center"}
         },
         {
           "id": 12,
           "title": "Clients per Node",
           "type": "bargauge",
-          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 20},
+          "gridPos": {"h": 5, "w": 12, "x": 0, "y": 19},
           "targets": [{"expr": "eero_node_clients{site=\"client-network\"}", "legendFormat": "{{location}}", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {
-              "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 20}]},
-              "min": 0, "max": 25
-            }
-          },
+          "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 20}]}, "min": 0, "max": 25}},
           "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true}
         },
         {
           "id": 13,
-          "title": "Online Devices Over Time",
+          "title": "Online Devices",
           "type": "timeseries",
-          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+          "gridPos": {"h": 5, "w": 12, "x": 12, "y": 19},
           "targets": [{"expr": "eero_online_devices{site=\"client-network\"}", "legendFormat": "Online", "refId": "A"}],
-          "fieldConfig": {
-            "defaults": {"custom": {"lineWidth": 2, "fillOpacity": 20}, "thresholds": {"steps": [{"color": "green", "value": null}]}}
-          }
+          "fieldConfig": {"defaults": {"custom": {"lineWidth": 2, "fillOpacity": 20}}}
+        },
+        {
+          "id": 17,
+          "title": "Connected Devices",
+          "type": "table",
+          "gridPos": {"h": 6, "w": 24, "x": 0, "y": 24},
+          "targets": [{"expr": "eero_device_connected{site=\"client-network\"} == 1", "format": "table", "instant": true, "refId": "A"}],
+          "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "host": true, "instance": true, "job": true, "site": true, "Value": true}, "renameByName": {"name": "Device", "ip": "IP", "mac": "MAC"}}}],
+          "fieldConfig": {"defaults": {"custom": {"align": "left"}}}
         }
       ],
       "schemaVersion": 38
