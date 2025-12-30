@@ -54,7 +54,7 @@ data:
         },
         {
           "id": 11,
-          "title": "Internet Speed - Download",
+          "title": "Download Speed",
           "type": "gauge",
           "gridPos": {"h": 5, "w": 6, "x": 0, "y": 4},
           "targets": [
@@ -80,7 +80,7 @@ data:
         },
         {
           "id": 12,
-          "title": "Internet Speed - Upload",
+          "title": "Upload Speed",
           "type": "gauge",
           "gridPos": {"h": 5, "w": 6, "x": 6, "y": 4},
           "targets": [
@@ -118,17 +118,11 @@ data:
           "fieldConfig": {
             "defaults": {
               "thresholds": {
-                "steps": [
-                  {"color": "blue", "value": null}
-                ]
+                "steps": [{"color": "blue", "value": null}]
               }
             }
           },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "center"
-          }
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center"}
         },
         {
           "id": 14,
@@ -144,17 +138,11 @@ data:
           "fieldConfig": {
             "defaults": {
               "thresholds": {
-                "steps": [
-                  {"color": "green", "value": null}
-                ]
+                "steps": [{"color": "green", "value": null}]
               }
             }
           },
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "center"
-          }
+          "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center"}
         },
         {
           "id": 15,
@@ -181,17 +169,96 @@ data:
               "max": 30
             }
           },
-          "options": {
-            "orientation": "horizontal",
-            "displayMode": "gradient",
-            "showUnfilled": true
-          }
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true}
+        },
+        {
+          "id": 17,
+          "title": "Mesh Quality (bars)",
+          "type": "bargauge",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 9},
+          "targets": [
+            {
+              "expr": "eero_node_mesh_quality{site=\"client-network\"}",
+              "legendFormat": "{{location}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 3},
+                  {"color": "green", "value": 4}
+                ]
+              },
+              "min": 0,
+              "max": 5
+            }
+          },
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true}
+        },
+        {
+          "id": 18,
+          "title": "Device Signal Strength (dBm)",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+          "targets": [
+            {
+              "expr": "eero_device_signal_dbm{site=\"client-network\"} != 0",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dBm",
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": -70},
+                  {"color": "green", "value": -50}
+                ]
+              },
+              "min": -100,
+              "max": 0
+            }
+          },
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true}
+        },
+        {
+          "id": 19,
+          "title": "Device RX Speed (Mbps)",
+          "type": "bargauge",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+          "targets": [
+            {
+              "expr": "eero_device_rx_rate_mbps{site=\"client-network\"} > 0",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Mbps",
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 100},
+                  {"color": "green", "value": 400}
+                ]
+              },
+              "min": 0,
+              "max": 1000
+            }
+          },
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true}
         },
         {
           "id": 16,
           "title": "Connected Devices",
           "type": "table",
-          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 9},
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
           "targets": [
             {
               "expr": "eero_device_connected{site=\"client-network\"} == 1",
@@ -221,234 +288,7 @@ data:
               }
             }
           ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "align": "left"
-              }
-            }
-          }
-        },
-        {
-          "id": 1,
-          "title": "Host Ping Status",
-          "type": "stat",
-          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 15},
-          "targets": [
-            {
-              "expr": "probe_success{site=\"client-network\"}",
-              "legendFormat": "{{name}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "mappings": [
-                {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
-                {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
-              ],
-              "thresholds": {
-                "steps": [
-                  {"color": "red", "value": null},
-                  {"color": "green", "value": 1}
-                ]
-              }
-            }
-          },
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "center"
-          }
-        },
-        {
-          "id": 2,
-          "title": "Ping Latency (ms)",
-          "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 19},
-          "targets": [
-            {
-              "expr": "probe_duration_seconds{site=\"client-network\"} * 1000",
-              "legendFormat": "{{name}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ms",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10
-              }
-            }
-          }
-        },
-        {
-          "id": 3,
-          "title": "Device Uptime %",
-          "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
-          "targets": [
-            {
-              "expr": "avg_over_time(probe_success{site=\"client-network\"}[5m]) * 100",
-              "legendFormat": "{{name}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100
-            }
-          }
-        },
-        {
-          "id": 4,
-          "title": "Host Network Traffic - Received",
-          "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 27},
-          "targets": [
-            {
-              "expr": "rate(node_network_receive_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
-              "legendFormat": "{{device}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bps",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 20
-              }
-            }
-          }
-        },
-        {
-          "id": 5,
-          "title": "Host Network Traffic - Transmitted",
-          "type": "timeseries",
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 27},
-          "targets": [
-            {
-              "expr": "rate(node_network_transmit_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
-              "legendFormat": "{{device}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bps",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 20
-              }
-            }
-          }
-        },
-        {
-          "id": 6,
-          "title": "Host CPU Usage",
-          "type": "gauge",
-          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 35},
-          "targets": [
-            {
-              "expr": "100 - (avg(rate(node_cpu_seconds_total{site=\"client-network\", mode=\"idle\"}[5m])) * 100)",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "thresholds": {
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 60},
-                  {"color": "red", "value": 80}
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": 7,
-          "title": "Host Memory Usage",
-          "type": "gauge",
-          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 35},
-          "targets": [
-            {
-              "expr": "(1 - (node_memory_MemAvailable_bytes{site=\"client-network\"} / node_memory_MemTotal_bytes{site=\"client-network\"})) * 100",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "min": 0,
-              "max": 100,
-              "thresholds": {
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 70},
-                  {"color": "red", "value": 85}
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": 8,
-          "title": "Network Errors",
-          "type": "timeseries",
-          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 35},
-          "targets": [
-            {
-              "expr": "rate(node_network_receive_errs_total{site=\"client-network\"}[5m])",
-              "legendFormat": "RX Errors - {{device}}",
-              "refId": "A"
-            },
-            {
-              "expr": "rate(node_network_transmit_errs_total{site=\"client-network\"}[5m])",
-              "legendFormat": "TX Errors - {{device}}",
-              "refId": "B"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "pps"
-            }
-          }
-        },
-        {
-          "id": 9,
-          "title": "Packet Loss %",
-          "type": "stat",
-          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 41},
-          "targets": [
-            {
-              "expr": "(1 - avg_over_time(probe_success{site=\"client-network\"}[1h])) * 100",
-              "legendFormat": "{{name}}",
-              "refId": "A"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent",
-              "thresholds": {
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "yellow", "value": 1},
-                  {"color": "red", "value": 5}
-                ]
-              }
-            }
-          },
-          "options": {
-            "colorMode": "background"
-          }
+          "fieldConfig": {"defaults": {"custom": {"align": "left"}}}
         }
       ],
       "schemaVersion": 38
