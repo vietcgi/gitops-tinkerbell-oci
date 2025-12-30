@@ -8,240 +8,238 @@ metadata:
 data:
   client-network.json: |
     {
-      "dashboard": {
-        "id": null,
-        "uid": "client-network",
-        "title": "Client Network Monitoring",
-        "tags": ["client", "network", "monitoring"],
-        "timezone": "browser",
-        "refresh": "30s",
-        "time": {
-          "from": "now-1h",
-          "to": "now"
+      "id": null,
+      "uid": "client-network",
+      "title": "Client Network Monitoring",
+      "tags": ["client", "network", "monitoring"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Network Device Status",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "probe_success{site=\"client-network\"}",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+                {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center"
+          }
         },
-        "panels": [
-          {
-            "id": 1,
-            "title": "Network Device Status",
-            "type": "stat",
-            "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
-            "targets": [
-              {
-                "expr": "probe_success{site=\"client-network\"}",
-                "legendFormat": "{{name}}",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "mappings": [
-                  {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
-                  {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
-                ],
-                "thresholds": {
-                  "steps": [
-                    {"color": "red", "value": null},
-                    {"color": "green", "value": 1}
-                  ]
-                }
-              }
-            },
-            "options": {
-              "colorMode": "background",
-              "graphMode": "none",
-              "justifyMode": "center"
+        {
+          "id": 2,
+          "title": "Ping Latency (ms)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "targets": [
+            {
+              "expr": "probe_duration_seconds{site=\"client-network\"} * 1000",
+              "legendFormat": "{{name}}",
+              "refId": "A"
             }
-          },
-          {
-            "id": 2,
-            "title": "Ping Latency (ms)",
-            "type": "timeseries",
-            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
-            "targets": [
-              {
-                "expr": "probe_duration_seconds{site=\"client-network\"} * 1000",
-                "legendFormat": "{{name}}",
-                "refId": "A"
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
               }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "ms",
-                "custom": {
-                  "lineWidth": 2,
-                  "fillOpacity": 10
-                }
-              }
-            }
-          },
-          {
-            "id": 3,
-            "title": "Device Uptime",
-            "type": "timeseries",
-            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
-            "targets": [
-              {
-                "expr": "avg_over_time(probe_success{site=\"client-network\"}[5m]) * 100",
-                "legendFormat": "{{name}}",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent",
-                "min": 0,
-                "max": 100
-              }
-            }
-          },
-          {
-            "id": 4,
-            "title": "Network Traffic - Received",
-            "type": "timeseries",
-            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
-            "targets": [
-              {
-                "expr": "rate(node_network_receive_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
-                "legendFormat": "{{device}}",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "bps",
-                "custom": {
-                  "lineWidth": 2,
-                  "fillOpacity": 20
-                }
-              }
-            }
-          },
-          {
-            "id": 5,
-            "title": "Network Traffic - Transmitted",
-            "type": "timeseries",
-            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
-            "targets": [
-              {
-                "expr": "rate(node_network_transmit_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
-                "legendFormat": "{{device}}",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "bps",
-                "custom": {
-                  "lineWidth": 2,
-                  "fillOpacity": 20
-                }
-              }
-            }
-          },
-          {
-            "id": 6,
-            "title": "CPU Usage",
-            "type": "gauge",
-            "gridPos": {"h": 6, "w": 6, "x": 0, "y": 20},
-            "targets": [
-              {
-                "expr": "100 - (avg(rate(node_cpu_seconds_total{site=\"client-network\", mode=\"idle\"}[5m])) * 100)",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent",
-                "min": 0,
-                "max": 100,
-                "thresholds": {
-                  "steps": [
-                    {"color": "green", "value": null},
-                    {"color": "yellow", "value": 60},
-                    {"color": "red", "value": 80}
-                  ]
-                }
-              }
-            }
-          },
-          {
-            "id": 7,
-            "title": "Memory Usage",
-            "type": "gauge",
-            "gridPos": {"h": 6, "w": 6, "x": 6, "y": 20},
-            "targets": [
-              {
-                "expr": "(1 - (node_memory_MemAvailable_bytes{site=\"client-network\"} / node_memory_MemTotal_bytes{site=\"client-network\"})) * 100",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent",
-                "min": 0,
-                "max": 100,
-                "thresholds": {
-                  "steps": [
-                    {"color": "green", "value": null},
-                    {"color": "yellow", "value": 70},
-                    {"color": "red", "value": 85}
-                  ]
-                }
-              }
-            }
-          },
-          {
-            "id": 8,
-            "title": "Network Errors",
-            "type": "timeseries",
-            "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
-            "targets": [
-              {
-                "expr": "rate(node_network_receive_errs_total{site=\"client-network\"}[5m])",
-                "legendFormat": "RX Errors - {{device}}",
-                "refId": "A"
-              },
-              {
-                "expr": "rate(node_network_transmit_errs_total{site=\"client-network\"}[5m])",
-                "legendFormat": "TX Errors - {{device}}",
-                "refId": "B"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "pps"
-              }
-            }
-          },
-          {
-            "id": 9,
-            "title": "Packet Loss",
-            "type": "stat",
-            "gridPos": {"h": 4, "w": 24, "x": 0, "y": 26},
-            "targets": [
-              {
-                "expr": "(1 - avg_over_time(probe_success{site=\"client-network\"}[1h])) * 100",
-                "legendFormat": "{{name}}",
-                "refId": "A"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent",
-                "thresholds": {
-                  "steps": [
-                    {"color": "green", "value": null},
-                    {"color": "yellow", "value": 1},
-                    {"color": "red", "value": 5}
-                  ]
-                }
-              }
-            },
-            "options": {
-              "colorMode": "background"
             }
           }
-        ],
-        "schemaVersion": 38
-      }
+        },
+        {
+          "id": 3,
+          "title": "Device Uptime",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "targets": [
+            {
+              "expr": "avg_over_time(probe_success{site=\"client-network\"}[5m]) * 100",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Network Traffic - Received",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "targets": [
+            {
+              "expr": "rate(node_network_receive_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
+              "legendFormat": "{{device}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Network Traffic - Transmitted",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "targets": [
+            {
+              "expr": "rate(node_network_transmit_bytes_total{site=\"client-network\", device=~\"en.*\"}[5m]) * 8",
+              "legendFormat": "{{device}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20
+              }
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "CPU Usage",
+          "type": "gauge",
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 20},
+          "targets": [
+            {
+              "expr": "100 - (avg(rate(node_cpu_seconds_total{site=\"client-network\", mode=\"idle\"}[5m])) * 100)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 60},
+                  {"color": "red", "value": 80}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "Memory Usage",
+          "type": "gauge",
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 20},
+          "targets": [
+            {
+              "expr": "(1 - (node_memory_MemAvailable_bytes{site=\"client-network\"} / node_memory_MemTotal_bytes{site=\"client-network\"})) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 85}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "Network Errors",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 20},
+          "targets": [
+            {
+              "expr": "rate(node_network_receive_errs_total{site=\"client-network\"}[5m])",
+              "legendFormat": "RX Errors - {{device}}",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(node_network_transmit_errs_total{site=\"client-network\"}[5m])",
+              "legendFormat": "TX Errors - {{device}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "pps"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "Packet Loss",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 26},
+          "targets": [
+            {
+              "expr": "(1 - avg_over_time(probe_success{site=\"client-network\"}[1h])) * 100",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 1},
+                  {"color": "red", "value": 5}
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background"
+          }
+        }
+      ],
+      "schemaVersion": 38
     }
