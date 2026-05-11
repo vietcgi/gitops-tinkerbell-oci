@@ -15,15 +15,15 @@ spec:
   bootOptions:
     toggleAllowNetboot: true
 ---
-# Workflow for anvil (Dell R610) Talos Linux installation
-# Talos is a minimal, immutable Kubernetes OS
+# Workflow for anvil (Dell R610) Ubuntu 24.04 installation
+# Uses the anvil-ubuntu-2404 Template which includes bnx2 firmware install
 apiVersion: tinkerbell.org/v1alpha1
 kind: Workflow
 metadata:
-  name: anvil-talos
+  name: anvil-ubuntu
   namespace: tink-system
 spec:
-  templateRef: talos
+  templateRef: anvil-ubuntu-2404
   hardwareRef: anvil
   hardwareMap:
     device_1: 00:21:9b:a1:dc:c0
