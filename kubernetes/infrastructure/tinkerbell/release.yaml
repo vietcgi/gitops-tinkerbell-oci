@@ -110,6 +110,13 @@ spec:
         # Use ClusterIP - served via Gateway API at hookos.qualityspace.com
         service:
           type: ClusterIP
+        # Persistence path: chart default is /tmp which systemd-tmpfiles cleans
+        # daily, wiping the extracted vmlinuz/initramfs and breaking PXE boot for
+        # any node that doesn't trigger a pod restart in time. Pin to a stable
+        # location under /var/lib that systemd-tmpfiles never touches.
+        persistence:
+          localPersistentVolume:
+            path: /var/lib/hookos
       # Disable kubevip - using Cilium L2 announcements
       kubevip:
         enabled: false
