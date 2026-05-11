@@ -49,7 +49,11 @@ spec:
         mac: 00:21:9b:a1:dc:c0
         uefi: false
       netboot:
-        allowPXE: true
+        # Default false; the anvil-ubuntu Workflow uses
+        # bootOptions.toggleAllowNetboot to flip this to true during install
+        # and back to false on workflow success, so we don't loop into HookOS
+        # on every boot after install.
+        allowPXE: false
       disableDhcp: false
   metadata:
     facility:
