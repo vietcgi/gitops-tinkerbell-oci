@@ -133,13 +133,23 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mkdir -p /mnt/boot/efi && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true"]
-          # Reboot using nsenter (host namespace) - actually reboots the machine
-          # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
+          # Reboot using nsenter (host namespace) - actually reboots the machine.
+          # IMPORTANT: backgrounded delayed reboot. If we ran `reboot -f` synchronously,
+          # HookOS would terminate before tink-agent could report this action's SUCCESS
+          # to tink-server. The workflow would stay in RUNNING state, and bootOptions
+          # `toggleAllowNetboot` would never fire to flip allowPXE back to false — so on
+          # the next BIOS PXE attempt, Smee would re-serve the same workflow and HookOS
+          # would boot again instead of the freshly-installed OS on disk.
+          # The 30s sleep gives the agent + controller time to:
+          #   1. report this action SUCCESS → workflow SUCCESS
+          #   2. run toggleAllowNetboot → patch Hardware allowPXE=false
+          # then `reboot -f` fires. The backgrounded subshell is reparented to HookOS
+          # PID 1 when this container exits, so it survives.
           - name: reboot-into-os
             image: justincormack/nsenter1
-            timeout: 30
+            timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync; (sleep 30 && reboot -f) & echo 'Reboot scheduled in 30s; reporting action SUCCESS now'"]
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
 # Uses nsenter to refresh partition table after image2disk (fixes mount failures)
@@ -283,13 +293,23 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda16 /mnt/boot && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
-          # Reboot using nsenter (host namespace) - actually reboots the machine
-          # This action won't complete because reboot terminates HookOS, but workflow already SUCCESS
+          # Reboot using nsenter (host namespace) - actually reboots the machine.
+          # IMPORTANT: backgrounded delayed reboot. If we ran `reboot -f` synchronously,
+          # HookOS would terminate before tink-agent could report this action's SUCCESS
+          # to tink-server. The workflow would stay in RUNNING state, and bootOptions
+          # `toggleAllowNetboot` would never fire to flip allowPXE back to false — so on
+          # the next BIOS PXE attempt, Smee would re-serve the same workflow and HookOS
+          # would boot again instead of the freshly-installed OS on disk.
+          # The 30s sleep gives the agent + controller time to:
+          #   1. report this action SUCCESS → workflow SUCCESS
+          #   2. run toggleAllowNetboot → patch Hardware allowPXE=false
+          # then `reboot -f` fires. The backgrounded subshell is reparented to HookOS
+          # PID 1 when this container exits, so it survives.
           - name: reboot-into-os
             image: justincormack/nsenter1
-            timeout: 30
+            timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync; (sleep 30 && reboot -f) & echo 'Reboot scheduled in 30s; reporting action SUCCESS now'"]
 ---
 # Harvester HCI v1.6.1 Installation Template
 # Downloads Harvester kernel/initrd and kexec's into the installer
