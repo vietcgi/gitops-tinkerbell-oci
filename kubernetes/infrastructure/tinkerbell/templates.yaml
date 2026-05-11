@@ -246,7 +246,7 @@ spec:
                 hostname: {{.hostname}}
                 manage_etc_hosts: true
                 users:
-                  - name: ubuntu
+                  - name: kevin
                     sudo: ALL=(ALL) NOPASSWD:ALL
                     shell: /bin/bash
                     lock_passwd: false
@@ -256,7 +256,7 @@ spec:
                 chpasswd:
                   list: |
                     root:$6$6cUHnjJ1JvrwzVVL$9qXzyIVh1CgCIaLkSyadZ2gJeiofWZ0rAVUoPWQQPMMFW31Y2dmXToe3jzG3wZPnXh3gvv3EGZGxXh/mcvS.S1
-                    ubuntu:$6$6cUHnjJ1JvrwzVVL$9qXzyIVh1CgCIaLkSyadZ2gJeiofWZ0rAVUoPWQQPMMFW31Y2dmXToe3jzG3wZPnXh3gvv3EGZGxXh/mcvS.S1
+                    kevin:$6$6cUHnjJ1JvrwzVVL$9qXzyIVh1CgCIaLkSyadZ2gJeiofWZ0rAVUoPWQQPMMFW31Y2dmXToe3jzG3wZPnXh3gvv3EGZGxXh/mcvS.S1
                   expire: false
                 ssh_pwauth: true
                 package_update: true
@@ -268,6 +268,10 @@ spec:
                 runcmd:
                   - systemctl enable qemu-guest-agent
                   - systemctl start qemu-guest-agent
+                  # Remove the stock ubuntu user that came baked into the image.
+                  # `users:` block above defines `kevin` as the primary account; the
+                  # ubuntu user from noble-bnx2.raw.gz is unused after this point.
+                  - userdel -r ubuntu 2>/dev/null || true
                   # Tinkerbell provisioning marker - proves this is a fresh install
                   - echo "tinkerbell_provisioned=$(date +%s)" > /var/lib/tinkerbell-provisioned
               UID: "0"

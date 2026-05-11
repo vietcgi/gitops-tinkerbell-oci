@@ -246,8 +246,11 @@ while true; do
         exit 1
     fi
 
-    # Try to SSH and verify the system
-    VERIFY_RESULT=$(ssh $SSH_OPTS ubuntu@"$TARGET_IP" "
+    # Try to SSH and verify the system.
+    # Default account on installed Ubuntu is `kevin` per templates.yaml cloud-init;
+    # fall back to `ubuntu` for legacy hosts provisioned before the switch.
+    SSH_USER=$(ssh $SSH_OPTS kevin@"$TARGET_IP" "echo kevin" 2>/dev/null && echo kevin || echo ubuntu)
+    VERIFY_RESULT=$(ssh $SSH_OPTS "$SSH_USER"@"$TARGET_IP" "
         echo \"HOSTNAME=\$(hostname)\"
         echo \"UPTIME=\$(awk '{print int(\$1)}' /proc/uptime)\"
         echo \"OS=\$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'\"' -f2)\"

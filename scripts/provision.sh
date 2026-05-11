@@ -19,8 +19,11 @@ case "$HARDWARE_NAME" in
         WORKFLOW_NAME="colo-server-01-ubuntu"
         ;;
     anvil)
-        # Default to harvester for anvil, but allow override
-        if [ -z "$WORKFLOW_TYPE" ] || [ "$WORKFLOW_TYPE" = "harvester" ]; then
+        # Default to ubuntu for anvil now that it's a Proxmox-style KVM hypervisor host.
+        # harvester / talos workflows still exist but are no longer the default.
+        if [ -z "$WORKFLOW_TYPE" ] || [ "$WORKFLOW_TYPE" = "ubuntu" ]; then
+            WORKFLOW_NAME="anvil-ubuntu"
+        elif [ "$WORKFLOW_TYPE" = "harvester" ]; then
             WORKFLOW_NAME="harvester"
         else
             WORKFLOW_NAME="anvil-$WORKFLOW_TYPE"
