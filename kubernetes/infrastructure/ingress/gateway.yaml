@@ -52,3 +52,24 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: wildcard-qualityspace-tls
+    # APEX listeners — Gateway API does NOT match apex via *.qualityspace.com.
+    # Required for qualityspace.com (no subdomain) to route to qualityspace-web.
+    # Wildcard cert above includes both *.qualityspace.com AND apex per dnsNames.
+    - name: http-apex
+      protocol: HTTP
+      port: 80
+      hostname: "qualityspace.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-apex
+      protocol: HTTPS
+      port: 443
+      hostname: "qualityspace.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-qualityspace-tls

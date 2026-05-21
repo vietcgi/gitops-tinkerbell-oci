@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - httproute.yaml
+  # Add ghcr-pull-secret.sealed.yaml here once Kevin's GHCR PAT is generated
+  # and sealed via kubeseal. See ghcr-pull-secret.template.yaml for the recipe.

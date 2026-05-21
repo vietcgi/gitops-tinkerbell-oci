@@ -1,0 +1,79 @@
+# Routes qualityspace.com (apex) and www.qualityspace.com to the qualityspace-web Service.
+# Depends on the apex listener patch in kubernetes/infrastructure/ingress/gateway.yaml.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: qualityspace-apex
+  namespace: qualityspace
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-apex
+  hostnames:
+    - qualityspace.com
+  rules:
+    - backendRefs:
+        - name: qualityspace-web
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: qualityspace-apex-http-redirect
+  namespace: qualityspace
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-apex
+  hostnames:
+    - qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# www → apex (301)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: qualityspace-www-redirect
+  namespace: qualityspace
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https
+  hostnames:
+    - www.qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: qualityspace.com
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: qualityspace-www-http-redirect
+  namespace: qualityspace
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http
+  hostnames:
+    - www.qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: qualityspace.com
+            statusCode: 301
