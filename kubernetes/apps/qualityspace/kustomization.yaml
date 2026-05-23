@@ -5,5 +5,4 @@ resources:
   - deployment.yaml
   - service.yaml
   - httproute.yaml
-  # Add ghcr-pull-secret.sealed.yaml here once Kevin's GHCR PAT is generated
-  # and sealed via kubeseal. See ghcr-pull-secret.template.yaml for the recipe.
+  - sealed-secret.yaml
