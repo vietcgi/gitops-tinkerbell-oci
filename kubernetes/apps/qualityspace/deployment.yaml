@@ -34,7 +34,7 @@ spec:
         - name: web
           # Image updated by deploy/build-push.sh + this YAML at every release.
           # Format: ghcr.io/vietcgi/qualityspace:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/qualityspace:09fa6bb-20260527-0801
+          image: ghcr.io/vietcgi/qualityspace:103c6be-20260527-0810
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -49,6 +49,25 @@ spec:
               value: "0.0.0.0"
             - name: PORT
               value: "3000"
+            # Admin Basic Auth credentials for /admin/* (middleware.ts).
+            # Secret created out-of-band via kubectl on the cluster:
+            #   kubectl -n qualityspace create secret generic qualityspace-admin-auth \
+            #     --from-literal=ADMIN_USERNAME='kevin' \
+            #     --from-literal=ADMIN_PASSWORD='<strong password>'
+            # If the secret is missing, the middleware fails closed and /admin
+            # returns 401 for all requests (secure default).
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: qualityspace-admin-auth
+                  key: ADMIN_USERNAME
+                  optional: true
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: qualityspace-admin-auth
+                  key: ADMIN_PASSWORD
+                  optional: true
           resources:
             requests:
               cpu: 50m
