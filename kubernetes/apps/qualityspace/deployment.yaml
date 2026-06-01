@@ -49,6 +49,12 @@ spec:
               value: "0.0.0.0"
             - name: PORT
               value: "3000"
+            # Lead pipeline JSONL fallback path. readOnlyRootFilesystem is true,
+            # so it must write to a mounted writable volume; /tmp is an emptyDir.
+            # Ignored once DATABASE_URL is present in the qualityspace-leads secret
+            # (then leads write to Postgres instead).
+            - name: QUALITYSPACE_DATA_DIR
+              value: "/tmp/leads"
             # Admin Basic Auth credentials for /admin/* (middleware.ts).
             # Secret created out-of-band via kubectl on the cluster:
             #   kubectl -n qualityspace create secret generic qualityspace-admin-auth \
@@ -68,6 +74,17 @@ spec:
                   name: qualityspace-admin-auth
                   key: ADMIN_PASSWORD
                   optional: true
+          # Lead-notify pipeline: SMTP_* + LEAD_* (Resend). The secret is created
+          # out-of-band on the cluster and kept OUT of this PUBLIC repo:
+          #   grep -E '^(SMTP_|LEAD_)' .env.local | ssh <node> \
+          #     "kubectl -n qualityspace create secret generic qualityspace-leads \
+          #        --from-env-file=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -"
+          # Add DATABASE_URL to the same secret to switch from JSONL to Postgres.
+          # optional:true => pod still starts if the secret is absent (email no-ops).
+          envFrom:
+            - secretRef:
+                name: qualityspace-leads
+                optional: true
           resources:
             requests:
               cpu: 50m
