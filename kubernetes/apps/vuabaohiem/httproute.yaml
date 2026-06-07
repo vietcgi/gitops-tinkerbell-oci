@@ -1,0 +1,81 @@
+# Routes vuabaohiem.com (apex) and www.vuabaohiem.com to the vuabaohiem-web Service.
+# Depends on the vuabaohiem listeners + cert added to
+# kubernetes/infrastructure/ingress/gateway.yaml (https-vbh-apex / http-vbh-apex
+# and the *.vuabaohiem.com listeners), and the wildcard-vuabaohiem-tls Certificate.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-apex
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-vbh-apex
+  hostnames:
+    - vuabaohiem.com
+  rules:
+    - backendRefs:
+        - name: vuabaohiem-web
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-apex-http-redirect
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-vbh-apex
+  hostnames:
+    - vuabaohiem.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# www → apex (301)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-www-redirect
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-vbh
+  hostnames:
+    - www.vuabaohiem.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: vuabaohiem.com
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-www-http-redirect
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-vbh
+  hostnames:
+    - www.vuabaohiem.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: vuabaohiem.com
+            statusCode: 301

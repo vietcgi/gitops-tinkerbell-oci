@@ -21,6 +21,21 @@ spec:
     - "*.qualityspace.com"
     - "qualityspace.com"
 ---
+# Wildcard TLS Certificate for *.vuabaohiem.com (+ apex). DNS-01 via Cloudflare.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-vuabaohiem-tls
+  namespace: ingress
+spec:
+  secretName: wildcard-vuabaohiem-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.vuabaohiem.com"
+    - "vuabaohiem.com"
+---
 # Shared Gateway for all services
 # Uses wildcard cert for all *.qualityspace.com subdomains
 # hostNetwork via Cilium - binds directly to host ports 80/443
@@ -73,3 +88,40 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: wildcard-qualityspace-tls
+    # ---- vuabaohiem.com listeners (wildcard cert covers *.vuabaohiem.com + apex) ----
+    - name: http-vbh
+      protocol: HTTP
+      port: 80
+      hostname: "*.vuabaohiem.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-vbh
+      protocol: HTTPS
+      port: 443
+      hostname: "*.vuabaohiem.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-vuabaohiem-tls
+    - name: http-vbh-apex
+      protocol: HTTP
+      port: 80
+      hostname: "vuabaohiem.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-vbh-apex
+      protocol: HTTPS
+      port: 443
+      hostname: "vuabaohiem.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-vuabaohiem-tls
