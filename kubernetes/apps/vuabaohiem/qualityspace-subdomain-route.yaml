@@ -1,0 +1,40 @@
+# Live URL on a *.qualityspace.com subdomain — covered by the existing
+# wildcard-qualityspace-tls cert + Cloudflare token (no new credentials).
+# Lets vuabaohiem serve immediately while vuabaohiem.com's own cert waits on the
+# Cloudflare API token gaining Zone.read for the vuabaohiem.com zone.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-vbh-qs
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https
+  hostnames:
+    - vbh.qualityspace.com
+  rules:
+    - backendRefs:
+        - name: vuabaohiem-web
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vuabaohiem-vbh-qs-http-redirect
+  namespace: vuabaohiem
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http
+  hostnames:
+    - vbh.qualityspace.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

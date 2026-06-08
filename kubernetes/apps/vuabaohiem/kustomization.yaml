@@ -6,4 +6,5 @@ resources:
   - deployment.yaml
   - service.yaml
   - httproute.yaml
+  - qualityspace-subdomain-route.yaml
   - sealed-secret.yaml
