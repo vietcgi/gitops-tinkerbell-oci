@@ -106,7 +106,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-vuabaohiem-tls
+          - name: wildcard-qualityspace-tls
     - name: http-vbh-apex
       protocol: HTTP
       port: 80
@@ -124,4 +124,4 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-vuabaohiem-tls
+          - name: wildcard-qualityspace-tls
