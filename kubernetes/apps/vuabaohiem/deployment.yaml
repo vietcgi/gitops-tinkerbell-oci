@@ -33,7 +33,7 @@ spec:
         - name: web
           # Image bumped by `make gitops` at every release.
           # Format: ghcr.io/vietcgi/vuabaohiem:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/vuabaohiem:ecfc45c-20260607-2344
+          image: ghcr.io/vietcgi/vuabaohiem:f328dcc-20260608-0019
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -55,6 +55,20 @@ spec:
               value: "/data"
             - name: VUABAOHIEM_LEAD_FILE_DURABLE
               value: "true"
+            # Basic-Auth for /admin (the leads viewer), middleware.ts.
+            # Secret created out-of-band: vuabaohiem-admin-auth.
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: vuabaohiem-admin-auth
+                  key: ADMIN_USERNAME
+                  optional: true
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vuabaohiem-admin-auth
+                  key: ADMIN_PASSWORD
+                  optional: true
           # Lead pipeline destination. In production the app FAILS CLOSED (HTTP 500)
           # if no durable sink is reachable, so this secret MUST provide
           # VUABAOHIEM_LEAD_WEBHOOK_URL (a CRM/email/Zapier endpoint). Create it
