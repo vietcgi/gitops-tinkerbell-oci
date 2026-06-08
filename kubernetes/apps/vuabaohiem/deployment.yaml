@@ -7,12 +7,17 @@ metadata:
     app.kubernetes.io/name: vuabaohiem-web
     app.kubernetes.io/part-of: vuabaohiem-site
 spec:
-  # Single replica: leads write to a node-local (RWO) PersistentVolume, so
-  # Recreate avoids two pods contending for the same volume on deploy.
-  replicas: 1
+  # 2 replicas for HA + zero-downtime rolling deploys (matches qualityspace).
+  # Leads are durable via the instant-email pipeline (notifyLead) + optional
+  # webhook — NOT a shared file — so each pod uses an ephemeral emptyDir for
+  # /data. (No RWX storage on this cluster, so a shared lead PVC isn't an option.)
+  replicas: 2
   revisionHistoryLimit: 3
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: vuabaohiem-web
@@ -122,5 +127,6 @@ spec:
         - name: nextjs-cache
           emptyDir: {}
         - name: leads-data
-          persistentVolumeClaim:
-            claimName: vuabaohiem-leads-data
+          # Ephemeral per-pod: leads are made durable by the instant-email
+          # pipeline (and optional webhook), not this file. Enables 2 replicas.
+          emptyDir: {}
