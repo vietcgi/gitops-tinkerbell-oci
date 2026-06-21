@@ -143,7 +143,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-qualityspace-tls
+          - name: xnails-tls
     - name: http-xnails-apex
       protocol: HTTP
       port: 80
@@ -161,4 +161,21 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-qualityspace-tls
+          - name: xnails-tls
+---
+# Let's Encrypt cert for xnails.me (+ www) via HTTP-01 (letsencrypt-http01).
+# xnails.me DNS is outside the cloudflare-api-token zone scope, so DNS-01
+# can't be used here; HTTP-01 through the gateway works instead.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: xnails-tls
+  namespace: ingress
+spec:
+  secretName: xnails-tls
+  issuerRef:
+    name: letsencrypt-http01
+    kind: ClusterIssuer
+  dnsNames:
+    - "xnails.me"
+    - "www.xnails.me"

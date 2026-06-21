@@ -31,6 +31,30 @@ spec:
               name: cloudflare-api-token
               key: api-token
 ---
+# Let's Encrypt PRODUCTION with HTTP-01 via Gateway API.
+# For domains whose DNS is NOT in the cloudflare-api-token's zone scope
+# (e.g. xnails.me), so DNS-01 can't be used. The ACME challenge is served
+# over HTTP through the main-gateway; works because Cloudflare passes
+# http://<host>/.well-known/acme-challenge/* through to the origin.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-http01
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: kevin@qualityspace.com
+    privateKeySecretRef:
+      name: letsencrypt-http01-account-key
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: main-gateway
+                namespace: ingress
+                kind: Gateway
+                group: gateway.networking.k8s.io
+---
 # Let's Encrypt PRODUCTION with Cloudflare DNS-01
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
