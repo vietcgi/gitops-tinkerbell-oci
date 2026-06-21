@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: xnails
+  labels:
+    app.kubernetes.io/name: xnails
+    app.kubernetes.io/part-of: xnails-site

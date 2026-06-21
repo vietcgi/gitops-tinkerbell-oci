@@ -125,3 +125,40 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: wildcard-qualityspace-tls
+    # ---- xnails.me listeners (Cloudflare-fronted; reuses wildcard cert on CF->origin hop) ----
+    - name: http-xnails
+      protocol: HTTP
+      port: 80
+      hostname: "*.xnails.me"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-xnails
+      protocol: HTTPS
+      port: 443
+      hostname: "*.xnails.me"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-qualityspace-tls
+    - name: http-xnails-apex
+      protocol: HTTP
+      port: 80
+      hostname: "xnails.me"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-xnails-apex
+      protocol: HTTPS
+      port: 443
+      hostname: "xnails.me"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-qualityspace-tls

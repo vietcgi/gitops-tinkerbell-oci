@@ -1,0 +1,81 @@
+# Routes xnails.me + www to xnails-web. Cloudflare fronts this domain (proxied),
+# so we route BOTH http and https sections straight to the Service (no origin
+# http->https redirect) to stay agnostic to the Cloudflare SSL mode and avoid
+# redirect loops. Cloudflare handles the visitor-facing HTTPS upgrade.
+# TLS for the https listeners is terminated at the gateway with the existing
+# wildcard-qualityspace-tls cert (Cloudflare "Full" accepts it on the CF->origin hop).
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: xnails-apex-https
+  namespace: xnails
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-xnails-apex
+  hostnames:
+    - xnails.me
+  rules:
+    - backendRefs:
+        - name: xnails-web
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: xnails-apex-http
+  namespace: xnails
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-xnails-apex
+  hostnames:
+    - xnails.me
+  rules:
+    - backendRefs:
+        - name: xnails-web
+          port: 80
+---
+# www.xnails.me -> apex (301), on both schemes
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: xnails-www-redirect-https
+  namespace: xnails
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-xnails
+  hostnames:
+    - www.xnails.me
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: xnails.me
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: xnails-www-redirect-http
+  namespace: xnails
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-xnails
+  hostnames:
+    - www.xnails.me
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: xnails.me
+            statusCode: 301
