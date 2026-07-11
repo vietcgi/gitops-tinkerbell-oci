@@ -8,9 +8,8 @@ metadata:
     app.kubernetes.io/part-of: vuabaohiem-site
 spec:
   # 2 replicas for HA + zero-downtime rolling deploys (matches qualityspace).
-  # Leads are durable via the instant-email pipeline (notifyLead) + optional
-  # webhook — NOT a shared file — so each pod uses an ephemeral emptyDir for
-  # /data. (No RWX storage on this cluster, so a shared lead PVC isn't an option.)
+  # Leads persist to a shared RWO local-path PVC at /data (see volumes below);
+  # the instant-email pipeline (notifyLead) is best-effort notification only.
   replicas: 2
   revisionHistoryLimit: 3
   strategy:
@@ -127,6 +126,11 @@ spec:
         - name: nextjs-cache
           emptyDir: {}
         - name: leads-data
-          # Ephemeral per-pod: leads are made durable by the instant-email
-          # pipeline (and optional webhook), not this file. Enables 2 replicas.
-          emptyDir: {}
+          # Persistent: the app treats this file as a durable sink
+          # (VUABAOHIEM_LEAD_FILE_DURABLE=true), so it must survive pod
+          # restarts — the email notify is fire-and-forget and does NOT count
+          # toward durability. RWO local-path is safe for 2 replicas because
+          # this is a single-node cluster (both pods mount the same host dir);
+          # revisit if the cluster ever gains a second node.
+          persistentVolumeClaim:
+            claimName: vuabaohiem-leads-data
