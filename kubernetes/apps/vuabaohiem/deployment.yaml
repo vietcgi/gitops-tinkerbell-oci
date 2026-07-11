@@ -37,7 +37,7 @@ spec:
         - name: web
           # Image bumped by `make gitops` at every release.
           # Format: ghcr.io/vietcgi/vuabaohiem:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/vuabaohiem:256a806-20260709-1236
+          image: ghcr.io/vietcgi/vuabaohiem:bd05725-20260711-0441
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
