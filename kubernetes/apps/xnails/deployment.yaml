@@ -37,7 +37,7 @@ spec:
         - name: web
           # Image + tag updated by deploy/build-push.sh + Makefile at every release.
           # Format: ghcr.io/vietcgi/xnails:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/xnails:0cd47c1-20260712-0026
+          image: ghcr.io/vietcgi/xnails:4e84ef2-20260712-0522
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
