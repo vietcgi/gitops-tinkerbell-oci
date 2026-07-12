@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qualityspace-review-cron
+  namespace: qualityspace
+  labels:
+    app.kubernetes.io/name: qualityspace-review-cron
+    app.kubernetes.io/part-of: qualityspace-site
+spec:
+  # Every 6 hours: the cascade stages are 12h/24h/72h after enrollment, so a
+  # 6h tick keeps sends within a few hours of their due time without spam risk
+  # (the endpoint is idempotent; each stage sends at most once).
+  schedule: "15 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 120
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: curl
+              image: curlimages/curl:8.10.1
+              env:
+                - name: REVIEW_CRON_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: qualityspace-leads
+                      key: REVIEW_CRON_TOKEN
+              command:
+                - sh
+                - -c
+                - >-
+                  curl -fsS -m 60
+                  -H "Authorization: Bearer ${REVIEW_CRON_TOKEN}"
+                  http://qualityspace-web.qualityspace.svc.cluster.local/api/review-cron
