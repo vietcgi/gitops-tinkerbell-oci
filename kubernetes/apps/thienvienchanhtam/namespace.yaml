@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: thienvienchanhtam
+  labels:
+    app.kubernetes.io/name: thienvienchanhtam
+    app.kubernetes.io/part-of: thienvienchanhtam-site

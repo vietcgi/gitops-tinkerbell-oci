@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - n8n/
   - qualityspace/
+  - thienvienchanhtam/
   - vuabaohiem/
   - xnails/

@@ -1,0 +1,86 @@
+# Routes thienvienchanhtam.org (apex) and www.thienvienchanhtam.org to the
+# thienvienchanhtam-web Service.
+#
+# REQUIRES (add to kubernetes/infrastructure/ingress/gateway.yaml, mirroring the
+# vuabaohiem listeners):
+#   - listeners: http-tvct-apex / https-tvct-apex (hostname: thienvienchanhtam.org)
+#                http-tvct / https-tvct           (hostname: *.thienvienchanhtam.org)
+#   - a Certificate covering thienvienchanhtam.org + *.thienvienchanhtam.org
+#     (wildcard-thienvienchanhtam-tls), same issuer as the others.
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: thienvienchanhtam-apex
+  namespace: thienvienchanhtam
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-tvct-apex
+  hostnames:
+    - thienvienchanhtam.org
+  rules:
+    - backendRefs:
+        - name: thienvienchanhtam-web
+          port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: thienvienchanhtam-apex-http-redirect
+  namespace: thienvienchanhtam
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-tvct-apex
+  hostnames:
+    - thienvienchanhtam.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+---
+# www → apex (301)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: thienvienchanhtam-www-redirect
+  namespace: thienvienchanhtam
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-tvct
+  hostnames:
+    - www.thienvienchanhtam.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: thienvienchanhtam.org
+            statusCode: 301
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: thienvienchanhtam-www-http-redirect
+  namespace: thienvienchanhtam
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-tvct
+  hostnames:
+    - www.thienvienchanhtam.org
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: thienvienchanhtam.org
+            statusCode: 301

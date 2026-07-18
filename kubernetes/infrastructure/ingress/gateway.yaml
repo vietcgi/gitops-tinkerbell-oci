@@ -36,6 +36,23 @@ spec:
     - "*.vuabaohiem.com"
     - "vuabaohiem.com"
 ---
+# Wildcard TLS Certificate for *.thienvienchanhtam.org (+ apex). DNS-01 via
+# Cloudflare (requires the cloudflare-api-token to cover this zone; if it does
+# not, switch issuerRef to the HTTP-01 issuer like xnails below).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-thienvienchanhtam-tls
+  namespace: ingress
+spec:
+  secretName: wildcard-thienvienchanhtam-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.thienvienchanhtam.org"
+    - "thienvienchanhtam.org"
+---
 # Shared Gateway for all services
 # Uses wildcard cert for all *.qualityspace.com subdomains
 # hostNetwork via Cilium - binds directly to host ports 80/443
@@ -125,6 +142,44 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: wildcard-qualityspace-tls
+    # ---- thienvienchanhtam.org listeners (Cloudflare-fronted; terminates TLS so
+    #      Cloudflare Full/Strict can complete the CF->origin hop, fixing 525) ----
+    - name: http-tvct
+      protocol: HTTP
+      port: 80
+      hostname: "*.thienvienchanhtam.org"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-tvct
+      protocol: HTTPS
+      port: 443
+      hostname: "*.thienvienchanhtam.org"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-thienvienchanhtam-tls
+    - name: http-tvct-apex
+      protocol: HTTP
+      port: 80
+      hostname: "thienvienchanhtam.org"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-tvct-apex
+      protocol: HTTPS
+      port: 443
+      hostname: "thienvienchanhtam.org"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: wildcard-thienvienchanhtam-tls
     # ---- xnails.me listeners (Cloudflare-fronted; reuses wildcard cert on CF->origin hop) ----
     - name: http-xnails
       protocol: HTTP

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: thienvienchanhtam-web
+  namespace: thienvienchanhtam
+  labels:
+    app.kubernetes.io/name: thienvienchanhtam-web
+spec:
+  type: ClusterIP
+  selector:
+    app: thienvienchanhtam-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
