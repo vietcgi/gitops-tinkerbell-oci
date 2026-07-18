@@ -36,22 +36,13 @@ spec:
     - "*.vuabaohiem.com"
     - "vuabaohiem.com"
 ---
-# Wildcard TLS Certificate for *.thienvienchanhtam.org (+ apex). DNS-01 via
-# Cloudflare (requires the cloudflare-api-token to cover this zone; if it does
-# not, switch issuerRef to the HTTP-01 issuer like xnails below).
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: wildcard-thienvienchanhtam-tls
-  namespace: ingress
-spec:
-  secretName: wildcard-thienvienchanhtam-tls
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-    - "*.thienvienchanhtam.org"
-    - "thienvienchanhtam.org"
+# NOTE: thienvienchanhtam.org is Cloudflare-fronted and its DNS zone is outside
+# the cluster's cloudflare-api-token scope, so DNS-01 can't issue a per-domain
+# cert here. Cloudflare terminates the valid public cert at its edge; the
+# CF->origin hop runs in "Full" (non-strict) mode, so the origin listener just
+# needs to terminate TLS with a working cert. The tvct listeners below reuse the
+# already-issued wildcard-qualityspace-tls for that hop — the same approach the
+# vuabaohiem.com listeners use.
 ---
 # Shared Gateway for all services
 # Uses wildcard cert for all *.qualityspace.com subdomains
@@ -161,7 +152,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-thienvienchanhtam-tls
+          - name: wildcard-qualityspace-tls
     - name: http-tvct-apex
       protocol: HTTP
       port: 80
@@ -179,7 +170,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: wildcard-thienvienchanhtam-tls
+          - name: wildcard-qualityspace-tls
     # ---- xnails.me listeners (Cloudflare-fronted; reuses wildcard cert on CF->origin hop) ----
     - name: http-xnails
       protocol: HTTP
