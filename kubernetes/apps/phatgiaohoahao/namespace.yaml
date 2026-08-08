@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: phatgiaohoahao
+  labels:
+    app.kubernetes.io/name: phatgiaohoahao
+    app.kubernetes.io/part-of: phatgiaohoahao-site
