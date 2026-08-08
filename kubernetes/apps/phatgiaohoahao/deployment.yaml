@@ -36,7 +36,7 @@ spec:
         - name: web
           # Image bumped by `make gitops` at every release.
           # Format: ghcr.io/vietcgi/phatgiaohoahao:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/phatgiaohoahao:1284ad8-20260808-1818
+          image: ghcr.io/vietcgi/phatgiaohoahao:529a991-20260808-1933
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
