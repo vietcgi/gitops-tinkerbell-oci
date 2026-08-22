@@ -21,20 +21,34 @@ spec:
     - "*.qualityspace.com"
     - "qualityspace.com"
 ---
-# Wildcard TLS Certificate for *.vuabaohiem.com (+ apex). DNS-01 via Cloudflare.
+# TLS Certificate for vuabaohiem.com (+ www) via HTTP-01.
+#
+# WHY NOT DNS-01 / wildcard: the cluster's cloudflare-api-token has no Zone.read
+# on the vuabaohiem.com zone, so the DNS-01 challenge fails with "Found no Zones
+# for domain _acme-challenge.vuabaohiem.com". The previous wildcard Certificate
+# sat Ready=False for 75 days for exactly that reason, and no listener ever
+# referenced it; the listeners fell back to wildcard-qualityspace-tls, which
+# meant the origin presented a MISMATCHED cert and the zone had to stay on
+# Cloudflare "Full" instead of "Full (strict)".
+#
+# HTTP-01 needs no API token. It is already proven on this same Gateway by
+# xnails-tls, which is Ready and also serves a Cloudflare-fronted domain.
+#
+# HTTP-01 cannot issue wildcards, which is fine: vuabaohiem serves exactly two
+# hostnames (see kubernetes/apps/vuabaohiem/httproute.yaml).
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-vuabaohiem-tls
+  name: vuabaohiem-tls
   namespace: ingress
 spec:
-  secretName: wildcard-vuabaohiem-tls
+  secretName: vuabaohiem-tls
   issuerRef:
-    name: letsencrypt-prod
+    name: letsencrypt-http01
     kind: ClusterIssuer
   dnsNames:
-    - "*.vuabaohiem.com"
     - "vuabaohiem.com"
+    - "www.vuabaohiem.com"
 ---
 # NOTE: thienvienchanhtam.org is Cloudflare-fronted and its DNS zone is outside
 # the cluster's cloudflare-api-token scope, so DNS-01 can't issue a per-domain
