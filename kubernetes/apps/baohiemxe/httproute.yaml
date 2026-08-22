@@ -1,0 +1,30 @@
+# West-coast SECOND ORIGIN for baohiemxe.
+#
+# It answers ONLY on origin-west.baohiemxe.com, never on baohiemxe.com itself.
+# baohiemxe.com stays pointed at the Ashburn origin; an edge Worker chooses
+# between origin-east and origin-west. Giving each origin its own hostname is
+# what makes that selection possible, since a Worker cannot fetch the hostname
+# it is itself serving.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: baohiemxe-origin-west
+  namespace: baohiemxe
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https-baohiemxe-origin-west
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http-baohiemxe-origin-west
+  hostnames:
+    - origin-west.baohiemxe.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: baohiemxe
+          port: 80

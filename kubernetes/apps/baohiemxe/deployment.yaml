@@ -1,0 +1,123 @@
+# West-coast second origin for baohiemxe. Mirrors the Ashburn deployment
+# (same image, same env, same secret) so both origins serve byte-identical
+# content. Keep the image tag in sync with
+# gitops-metal3-oci/kubernetes/apps/baohiemxe/deployment.yaml on every deploy,
+# or the two origins will drift and the edge Worker will serve mixed builds.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: baohiemxe
+  namespace: baohiemxe
+  labels:
+    app.kubernetes.io/name: baohiemxe
+    app.kubernetes.io/component: web
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  # Next.js serves build-hashed /_next/static assets from each image. Do not
+  # mix old and new pods behind one Service during deploys, or HTML from one
+  # build can point to a CSS chunk that another build does not have.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: baohiemxe
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: baohiemxe
+        app.kubernetes.io/component: web
+    spec:
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: ghcr.io/vietcgi/baohiemxe:888b3d7-20260822-0525
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3200
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3200"
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: NEXT_PUBLIC_SITE_URL
+              value: https://baohiemxe.com
+            # Supabase (Postgres in us-east-1; DATABASE_URL is in baohiemxe-secrets)
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              value: https://riavvtbpneyueewfcwmt.supabase.co
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+              value: sb_publishable_GwYk012sKyjGY2xR4rXtfg_72pehNRS
+            # Resend SMTP (transactional email; lead notifications + auto-replies)
+            - name: SMTP_HOST
+              value: smtp.resend.com
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              value: resend
+            - name: LEAD_FROM_EMAIL
+              value: BaoHiemXe <noreply@baohiemxe.com>
+            - name: LEAD_NOTIFY_EMAIL
+              value: kevin@qualityspace.com
+          envFrom:
+            - secretRef:
+                name: baohiemxe-secrets
+                optional: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.next/cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: baohiemxe

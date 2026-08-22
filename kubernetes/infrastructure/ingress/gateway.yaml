@@ -36,6 +36,23 @@ spec:
 #
 # HTTP-01 cannot issue wildcards, which is fine: vuabaohiem serves exactly two
 # hostnames (see kubernetes/apps/vuabaohiem/httproute.yaml).
+---
+# origin-west.baohiemxe.com: this cluster acting as the SECOND baohiemxe origin.
+# HTTP-01 for the same reason as vuabaohiem: the cluster's cloudflare-api-token
+# has no Zone.read on baohiemxe.com either, so DNS-01 cannot work here.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: baohiemxe-origin-west-tls
+  namespace: ingress
+spec:
+  secretName: baohiemxe-origin-west-tls
+  issuerRef:
+    name: letsencrypt-http01
+    kind: ClusterIssuer
+  dnsNames:
+    - "origin-west.baohiemxe.com"
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -147,6 +164,27 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: vuabaohiem-tls
+    # ---- baohiemxe.com SECOND ORIGIN (west) ----
+    # Answers only on origin-west.baohiemxe.com. baohiemxe.com itself is served
+    # from Ashburn; an edge Worker selects between the two origins.
+    - name: http-baohiemxe-origin-west
+      protocol: HTTP
+      port: 80
+      hostname: "origin-west.baohiemxe.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https-baohiemxe-origin-west
+      protocol: HTTPS
+      port: 443
+      hostname: "origin-west.baohiemxe.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: baohiemxe-origin-west-tls
     # ---- thienvienchanhtam.org listeners (Cloudflare-fronted; terminates TLS so
     #      Cloudflare Full/Strict can complete the CF->origin hop, fixing 525) ----
     - name: http-tvct
