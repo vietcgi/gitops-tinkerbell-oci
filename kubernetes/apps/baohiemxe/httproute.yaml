@@ -25,6 +25,13 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      filters:
+        # See the matching comment on the east HTTPRoute.
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: X-Served-By
+                value: west
       backendRefs:
         - name: baohiemxe
           port: 80
