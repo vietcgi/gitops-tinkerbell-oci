@@ -77,3 +77,44 @@ spec:
             scheme: https
             hostname: qualityspace.com
             statusCode: 301
+---
+# West origin, addressed directly by name.
+#
+# The Cloudflare Worker in front of qualityspace.com picks between origins and
+# fetches the chosen one by its own hostname, so each origin needs a name that
+# resolves to it specifically. This is never advertised publicly and serves the
+# identical app; it exists so the edge can address one cluster deliberately.
+#
+# Covered by the existing "*.qualityspace.com" wildcard listener and cert, so
+# no new listener or certificate is required.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: qualityspace-origin-west
+  namespace: qualityspace
+spec:
+  parentRefs:
+    - name: main-gateway
+      namespace: ingress
+      sectionName: https
+    - name: main-gateway
+      namespace: ingress
+      sectionName: http
+  hostnames:
+    - origin-west.qualityspace.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        # Which origin answered. Without this you cannot confirm during an
+        # incident whether failover actually moved traffic.
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: X-Served-By
+                value: west
+      backendRefs:
+        - name: qualityspace-web
+          port: 80
