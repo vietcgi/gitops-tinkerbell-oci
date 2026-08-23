@@ -53,6 +53,16 @@ spec:
               value: "3200"
             - name: HOSTNAME
               value: 0.0.0.0
+            # Lead JSONL fallback path, used when the Supabase insert fails.
+            # MUST point at a mounted writable volume: readOnlyRootFilesystem is
+            # true, and the default (process.cwd()/data = /app/data) is baked
+            # into the image and read-only, so the fallback threw EROFS and the
+            # "never drop a lead" safety net silently did not exist. Verified in
+            # the running pod on 2026-08-22. /tmp is an emptyDir; the app
+            # mkdir -p's the subdir itself. Matches qualityspace's
+            # QUALITYSPACE_DATA_DIR. Ignored while DATABASE_URL is reachable.
+            - name: BAOHIEMXE_DATA_DIR
+              value: "/tmp/leads"
             - name: NEXT_PUBLIC_SITE_URL
               value: https://baohiemxe.com
             # Supabase (Postgres in us-east-1; DATABASE_URL is in baohiemxe-secrets)
