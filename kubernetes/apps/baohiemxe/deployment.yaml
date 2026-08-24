@@ -40,7 +40,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/vietcgi/baohiemxe:376d946-20260823-2336
+          image: ghcr.io/vietcgi/baohiemxe:01a8af9-20260823-2354
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
