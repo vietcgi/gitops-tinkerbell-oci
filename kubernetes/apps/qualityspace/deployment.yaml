@@ -50,11 +50,12 @@ spec:
             - name: PORT
               value: "3000"
             # Lead pipeline JSONL fallback path. readOnlyRootFilesystem is true,
-            # so it must write to a mounted writable volume; /tmp is an emptyDir.
-            # Ignored once DATABASE_URL is present in the qualityspace-leads secret
-            # (then leads write to Postgres instead).
+            # so it must write to a mounted writable volume. Mounted from
+            # qualityspace-leads-data PVC to survive pod restarts. Ignored once
+            # DATABASE_URL is present in the qualityspace-leads secret (then leads
+            # write to Postgres instead).
             - name: QUALITYSPACE_DATA_DIR
-              value: "/tmp/leads"
+              value: "/data"
             # Admin Basic Auth credentials for /admin/* (middleware.ts).
             # Secret created out-of-band via kubectl on the cluster:
             #   kubectl -n qualityspace create secret generic qualityspace-admin-auth \
@@ -119,8 +120,13 @@ spec:
               mountPath: /tmp
             - name: nextjs-cache
               mountPath: /app/.next/cache
+            - name: leads-data
+              mountPath: /data
       volumes:
         - name: tmp
           emptyDir: {}
         - name: nextjs-cache
           emptyDir: {}
+        - name: leads-data
+          persistentVolumeClaim:
+            claimName: qualityspace-leads-data
