@@ -1,0 +1,45 @@
+# WEST cluster ONLY: ~/gitops-tinkerbell-oci/kubernetes/apps/qualityspace/dmv-daily-cronjob.yaml
+# (add "- dmv-daily-cronjob.yaml" to that directory's kustomization.yaml).
+# Do NOT copy to gitops-metal3-oci (east). Even if someone does, the per-day
+# claim in dmv_daily_deliveries prevents a double send; this is belt and braces.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qualityspace-dmv-daily
+  namespace: qualityspace
+  labels:
+    app.kubernetes.io/name: qualityspace-dmv-daily
+    app.kubernetes.io/part-of: qualityspace-site
+spec:
+  # 7 AM Pacific, plus a 9 AM catch-up run that only mails whoever the first
+  # run deferred (per-run cap) or failed on. Already-mailed addresses are
+  # skipped by the per-day claim, so the second run is a no-op on a clean day.
+  schedule: "0 7,9 * * *"
+  timeZone: America/Los_Angeles
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 330
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: curl
+              image: curlimages/curl:8.10.1
+              env:
+                - name: DMV_DAILY_CRON_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: qualityspace-leads
+                      key: DMV_DAILY_CRON_TOKEN
+              command:
+                - sh
+                - -c
+                - >-
+                  curl -fsS -m 300 -X POST
+                  -H "Authorization: Bearer ${DMV_DAILY_CRON_TOKEN}"
+                  http://qualityspace-web.qualityspace.svc.cluster.local/api/dmv-daily/send

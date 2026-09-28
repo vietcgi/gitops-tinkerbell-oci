@@ -8,3 +8,4 @@ resources:
   - httproute.yaml
   - sealed-secret.yaml
   - review-cron-cronjob.yaml
+  - dmv-daily-cronjob.yaml
