@@ -84,6 +84,13 @@ spec:
             - secretRef:
                 name: vuabaohiem-leads
                 optional: true
+            # DATABASE_URL for the shared Supabase project (system of record for
+            # leads; see vuabaohiem docs/HANDOFF_LEADS_TO_POSTGRES.md). Created
+            # imperatively on both clusters, copied from qualityspace-leads; never
+            # in this repo. optional:true => without it the app spools leads to /data.
+            - secretRef:
+                name: vuabaohiem-db
+                optional: true
           resources:
             requests:
               cpu: 50m
