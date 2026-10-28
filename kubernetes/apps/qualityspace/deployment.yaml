@@ -88,10 +88,10 @@ spec:
                 optional: true
           resources:
             requests:
-              cpu: 50m
+              cpu: 200m
               memory: 256Mi
             limits:
-              cpu: 250m
+              cpu: 1000m
               memory: 1024Mi
           readinessProbe:
             httpGet:
