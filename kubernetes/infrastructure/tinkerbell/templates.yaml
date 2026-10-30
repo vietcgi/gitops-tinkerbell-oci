@@ -476,12 +476,21 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; set -e; mount /dev/sda1 /mnt; mount /dev/sda13 /mnt/boot; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=i386-pc /dev/sda; chroot /mnt update-grub; sync; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt"]
-          # See anvil-ubuntu-2404 reboot-into-os for why this is synchronous
+          # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
+          # from a detached container. The Workflow reaches SUCCESS, so the controller's
+          # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
+          # A synchronous `reboot -f` killed HookOS before reporting and left it RUNNING.
           - name: reboot-into-os
-            image: justincormack/nsenter1
-            timeout: 30
+            image: ghcr.io/jacobweinstock/waitdaemon:0.4.3
+            timeout: 90
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            command: ["/bin/sh", "-c", "sync && reboot -f"]
+            environment:
+              IMAGE: alpine:3.20
+              WAIT_SECONDS: "10"
+              CONTAINER_RUNTIME: docker
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock
 ---
 # Harvester HCI v1.6.1 Installation Template
 # Downloads Harvester kernel/initrd and kexec's into the installer
