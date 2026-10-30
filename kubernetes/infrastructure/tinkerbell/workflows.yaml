@@ -14,3 +14,20 @@ spec:
   # Automatically disable PXE boot after workflow completes
   bootOptions:
     toggleAllowNetboot: true
+---
+# Workflow for hammer Ubuntu 26.04 installation
+# Remove after install: reboot-into-os never reports success, so allowPXE stays true
+apiVersion: tinkerbell.org/v1alpha1
+kind: Workflow
+metadata:
+  name: hammer-ubuntu-2604
+  namespace: tink-system
+spec:
+  templateRef: ubuntu-2604-bios
+  hardwareRef: hammer
+  hardwareMap:
+    device_1: 00:21:9b:a4:ef:6f
+    hostname: hammer
+    ip_address: 108.181.38.69/27
+  bootOptions:
+    toggleAllowNetboot: true

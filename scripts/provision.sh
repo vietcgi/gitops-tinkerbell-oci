@@ -6,6 +6,7 @@
 #   ./provision.sh anvil                   # Uses anvil-harvester workflow (default)
 #   ./provision.sh anvil ubuntu            # Uses anvil-ubuntu workflow
 #   ./provision.sh forge                   # Uses forge-ubuntu-2604 workflow
+#   ./provision.sh hammer                  # Uses hammer-ubuntu-2604 workflow
 #   ./provision.sh anvil harvester         # Uses anvil-harvester workflow
 set -e
 
@@ -18,6 +19,9 @@ WORKFLOW_FILE="$REPO_DIR/kubernetes/infrastructure/tinkerbell/workflows.yaml"
 case "$HARDWARE_NAME" in
     colo-server-01)
         WORKFLOW_NAME="colo-server-01-ubuntu"
+        ;;
+    hammer)
+        WORKFLOW_NAME="hammer-ubuntu-2604"
         ;;
     forge)
         WORKFLOW_NAME="forge-ubuntu-2604"
@@ -36,7 +40,7 @@ case "$HARDWARE_NAME" in
     *)
         echo "Unknown hardware: $HARDWARE_NAME"
         echo "Usage: $0 <hardware> [workflow]"
-        echo "  hardware: colo-server-01, anvil, forge"
+        echo "  hardware: colo-server-01, anvil, forge, hammer"
         echo "  workflow: ubuntu, harvester (optional, hardware-specific default)"
         exit 1
         ;;

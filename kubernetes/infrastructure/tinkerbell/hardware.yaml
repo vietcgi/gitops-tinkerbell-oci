@@ -91,3 +91,33 @@ spec:
       facility_code: colo
     instance:
       hostname: forge
+---
+# Hardware definition for hammer (third Dell R610, svc tag 47QVVH2)
+# MAC: 00:21:9b:a4:ef:6f - from PXE console 2026-10-30
+apiVersion: tinkerbell.org/v1alpha1
+kind: Hardware
+metadata:
+  name: hammer
+  namespace: tink-system
+spec:
+  disks:
+    - device: /dev/sda
+  interfaces:
+    - dhcp:
+        arch: x86_64
+        hostname: hammer
+        ip:
+          address: 108.181.38.69
+          gateway: 108.181.38.65
+          netmask: 255.255.255.224
+        mac: 00:21:9b:a4:ef:6f
+        uefi: false
+      netboot:
+        # hammer-ubuntu-2604 Workflow flips this via bootOptions.toggleAllowNetboot
+        allowPXE: false
+      disableDhcp: false
+  metadata:
+    facility:
+      facility_code: colo
+    instance:
+      hostname: hammer
