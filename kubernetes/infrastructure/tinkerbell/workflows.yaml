@@ -15,18 +15,18 @@ spec:
   bootOptions:
     toggleAllowNetboot: true
 ---
-# Workflow for anvil (Dell R610) Ubuntu 24.04 installation
-# Uses the anvil-ubuntu-2404 Template which includes bnx2 firmware install
+# Workflow for anvil Ubuntu 26.04 installation
+# New name (was anvil-ubuntu / 24.04) so a fresh Workflow is created and runs
 apiVersion: tinkerbell.org/v1alpha1
 kind: Workflow
 metadata:
-  name: anvil-ubuntu
+  name: anvil-ubuntu-2604
   namespace: tink-system
 spec:
-  templateRef: anvil-ubuntu-2404
+  templateRef: anvil-ubuntu-2604
   hardwareRef: anvil
   hardwareMap:
-    device_1: 00:21:9b:a1:dc:c0
+    device_1: f0:4d:a2:0a:51:cb
     hostname: anvil
   bootOptions:
     toggleAllowNetboot: true

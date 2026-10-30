@@ -206,7 +206,9 @@ spec:
                 network:
                   version: 2
                   ethernets:
-                    eno1:
+                    uplink:
+                      match:
+                        macaddress: "f0:4d:a2:0a:51:cb"
                       dhcp4: false
                       dhcp6: false
                       addresses:
@@ -313,6 +315,169 @@ spec:
           # with it. HookOS is LinuxKit (no systemd) so systemd-run isn't available either.
           # Do not change this action to async without first verifying the escape mechanism
           # actually survives containerd cleanup on HookOS v0.11.1+.
+          - name: reboot-into-os
+            image: justincormack/nsenter1
+            timeout: 30
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+---
+# Ubuntu 26.04 LTS (Resolute Raccoon) Installation Template for anvil
+# Canonical only publishes 26.04 cloud images as qcow2, so this streams the
+# official image and converts it straight onto the disk instead of image2disk.
+# Partition layout of resolute-server-cloudimg-amd64.img (differs from 24.04):
+#   sda1 = root (ext4), sda13 = /boot (ext4), sda14 = BIOS boot, sda15 = EFI
+apiVersion: tinkerbell.org/v1alpha1
+kind: Template
+metadata:
+  name: anvil-ubuntu-2604
+  namespace: tink-system
+spec:
+  data: |
+    version: "0.1"
+    name: anvil-ubuntu-2604
+    global_timeout: 2400
+    tasks:
+      - name: os-installation
+        worker: "{{.device_1}}"
+        volumes:
+          - /dev:/dev
+          - /dev/console:/dev/console
+          - /lib/firmware:/lib/firmware:ro
+        actions:
+          # Download + verify SHA256 against Canonical's SHA256SUMS, then write raw to disk.
+          # -n: target is an existing block device, so qemu-img writes zeros explicitly
+          - name: stream-ubuntu-image
+            image: alpine:3.20
+            timeout: 900
+            environment:
+              BASE_URL: https://cloud-images.ubuntu.com/resolute/current
+              IMG: resolute-server-cloudimg-amd64.img
+            command: ["/bin/sh", "-c", "set -e; apk add --no-cache qemu-img curl; cd /tmp; curl -fL --retry 3 -o $IMG $BASE_URL/$IMG; curl -fsSL $BASE_URL/SHA256SUMS | awk -v f=$IMG '{n=$2; sub(/^\\*/,\"\",n)} n==f {print $1\"  \"f}' | grep . | sha256sum -c -; qemu-img convert -p -n -f qcow2 -O raw $IMG /dev/sda; sync; rm -f $IMG"]
+          # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
+          # Note: partprobe may fail if partitions are in use, so we use || true
+          - name: partition-refresh
+            image: justincormack/nsenter1
+            timeout: 60
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
+          # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
+          # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
+          - name: reset-cloud-init-state
+            image: justincormack/nsenter1
+            timeout: 120
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
+          - name: write-netplan
+            image: quay.io/tinkerbell/actions/writefile:latest
+            timeout: 90
+            environment:
+              DEST_DISK: /dev/sda1
+              FS_TYPE: ext4
+              DEST_PATH: /etc/netplan/50-cloud-init.yaml
+              CONTENTS: |
+                network:
+                  version: 2
+                  ethernets:
+                    uplink:
+                      match:
+                        macaddress: "f0:4d:a2:0a:51:cb"
+                      dhcp4: false
+                      dhcp6: false
+                      addresses:
+                        - 108.181.38.87/27
+                      routes:
+                        - to: 0.0.0.0/0
+                          via: 108.181.38.65
+                      nameservers:
+                        addresses:
+                          - 8.8.8.8
+                          - 8.8.4.4
+              UID: "0"
+              GID: "0"
+              MODE: "0600"
+              DIRMODE: "0755"
+          # Keep cloud-init from regenerating netplan with fallback DHCP on first boot
+          - name: disable-cloud-init-network
+            image: quay.io/tinkerbell/actions/writefile:latest
+            timeout: 90
+            environment:
+              DEST_DISK: /dev/sda1
+              FS_TYPE: ext4
+              DEST_PATH: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+              CONTENTS: |
+                network: {config: disabled}
+              UID: "0"
+              GID: "0"
+              MODE: "0644"
+              DIRMODE: "0755"
+          - name: write-cloud-init-meta
+            image: quay.io/tinkerbell/actions/writefile:latest
+            timeout: 90
+            environment:
+              DEST_DISK: /dev/sda1
+              FS_TYPE: ext4
+              DEST_PATH: /var/lib/cloud/seed/nocloud/meta-data
+              CONTENTS: |
+                instance-id: {{.device_1}}
+                local-hostname: {{.hostname}}
+              UID: "0"
+              GID: "0"
+              MODE: "0644"
+              DIRMODE: "0755"
+          - name: write-cloud-init-user
+            image: quay.io/tinkerbell/actions/writefile:latest
+            timeout: 90
+            environment:
+              DEST_DISK: /dev/sda1
+              FS_TYPE: ext4
+              DEST_PATH: /var/lib/cloud/seed/nocloud/user-data
+              CONTENTS: |
+                #cloud-config
+                hostname: {{.hostname}}
+                manage_etc_hosts: true
+                users:
+                  - name: kevin
+                    sudo: ALL=(ALL) NOPASSWD:ALL
+                    shell: /bin/bash
+                    lock_passwd: false
+                    ssh_authorized_keys:
+                      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC5/lrhHAQdTRfppzfA7Emn/hcSHobEpl6LzNFsxD9Pi0+sRT8K2shdwZ02vk+eZT3chi6Pwf5Cb82/NS7yLlq4eUxG/IKp1HxVKTdTQgA3E0HF/mmwveCnuR55iUvNNliRyWbBnY/uw5yfhVrDIyAwP+rE16M/ROlorbskJ4R6fFMr4M4o2PjAFL2KH+1lnMrtbNoovqg7/xLBhiDGhs6sNHl4E34PHICkH7Xqkh+7TCDbpjDGxMuNL5RG1zMG1fLFfJX0QIQanN2jHJU2NEMBVWB+BxNYWKWACHQevubER8KdxksBj3Newi65zx2enDoKNE6kpzi2lqPdDpUXwwVf kevin
+                      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIND/fC/qBE102c4RLsxdto+62Zaq4KdlqSQwpuWR9wcC ubuntu@metal-foundry-control
+                chpasswd:
+                  list: |
+                    root:$6$6cUHnjJ1JvrwzVVL$9qXzyIVh1CgCIaLkSyadZ2gJeiofWZ0rAVUoPWQQPMMFW31Y2dmXToe3jzG3wZPnXh3gvv3EGZGxXh/mcvS.S1
+                    kevin:$6$6cUHnjJ1JvrwzVVL$9qXzyIVh1CgCIaLkSyadZ2gJeiofWZ0rAVUoPWQQPMMFW31Y2dmXToe3jzG3wZPnXh3gvv3EGZGxXh/mcvS.S1
+                  expire: false
+                ssh_pwauth: true
+                package_update: true
+                package_upgrade: true
+                packages:
+                  - curl
+                  - vim
+                runcmd:
+                  # Remove the stock ubuntu user that came baked into the cloud image.
+                  - userdel -r ubuntu 2>/dev/null || true
+                  # Tinkerbell provisioning marker - proves this is a fresh install
+                  - echo "tinkerbell_provisioned=$(date +%s)" > /var/lib/tinkerbell-provisioned
+              UID: "0"
+              GID: "0"
+              MODE: "0644"
+              DIRMODE: "0755"
+          # Copy Broadcom bnx2 firmware from HookOS (no-op if the NIC doesn't need it) and
+          # regenerate initramfs. /boot is sda13 on 26.04 cloud images.
+          - name: install-bnx2-firmware
+            image: justincormack/nsenter1
+            timeout: 180
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda13 /mnt/boot && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS'; mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt update-initramfs -u -k all; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
+          # Install GRUB for legacy BIOS (server boot mode is BIOS; image has BIOS boot partition sda14)
+          # Fails the action on error instead of masking it with a trailing `|| true`
+          - name: install-grub
+            image: justincormack/nsenter1
+            timeout: 180
+            pid: host
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; set -e; mount /dev/sda1 /mnt; mount /dev/sda13 /mnt/boot; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=i386-pc /dev/sda; chroot /mnt update-grub; sync; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt"]
+          # See anvil-ubuntu-2404 reboot-into-os for why this is synchronous
           - name: reboot-into-os
             image: justincormack/nsenter1
             timeout: 30

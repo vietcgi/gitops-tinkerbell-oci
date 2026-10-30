@@ -20,6 +20,7 @@ sudo systemctl restart isc-dhcp-server
 
 # 3. Deploy TFTP Config
 echo "Configuring TFTP..."
+sudo mkdir -p /srv/tftp
 sudo cp tftpd-hpa /etc/default/tftpd-hpa
 sudo systemctl restart tftpd-hpa
 

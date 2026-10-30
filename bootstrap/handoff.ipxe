@@ -11,7 +11,7 @@ set tink_ip tinkerbell.qualityspace.com
 # 2. Set Critical Global Variables for HookOS
 # Without 'grpc_authority', HookOS will hang.
 set tink_server ${tink_ip}
-set grpc_authority ${tink_ip}:42113
+set grpc_authority ${tink_ip}:80
 set tinkerbell_tls false
 
 # 3. Chainload to the OCI Smee server
