@@ -14,19 +14,3 @@ spec:
   # Automatically disable PXE boot after workflow completes
   bootOptions:
     toggleAllowNetboot: true
----
-# Workflow for forge Ubuntu 26.04 installation
-apiVersion: tinkerbell.org/v1alpha1
-kind: Workflow
-metadata:
-  name: forge-ubuntu-2604
-  namespace: tink-system
-spec:
-  templateRef: ubuntu-2604-bios
-  hardwareRef: forge
-  hardwareMap:
-    device_1: f0:4d:a2:0a:51:cb
-    hostname: forge
-    ip_address: 108.181.38.86/27
-  bootOptions:
-    toggleAllowNetboot: true

@@ -82,7 +82,8 @@ spec:
         mac: f0:4d:a2:0a:51:cb
         uefi: false
       netboot:
-        # forge-ubuntu-2604 Workflow flips this via bootOptions.toggleAllowNetboot
+        # Installed Ubuntu 26.04 on 2026-10-30. Keep false so reboots boot from disk;
+        # to reinstall, add a new uniquely named Workflow (toggleAllowNetboot: true)
         allowPXE: false
       disableDhcp: false
   metadata:
