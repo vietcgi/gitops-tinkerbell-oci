@@ -113,8 +113,9 @@ spec:
         mac: 00:21:9b:a4:ef:6f
         uefi: false
       netboot:
-        # hammer-ubuntu-2604 Workflow flips this via bootOptions.toggleAllowNetboot
-        allowPXE: false
+        # TRUE only while installing. Flux re-applies this every hour and would
+        # overwrite the Workflow's toggleAllowNetboot. Set back to false after install.
+        allowPXE: true
       disableDhcp: false
   metadata:
     facility:
