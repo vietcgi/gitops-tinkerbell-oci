@@ -4,7 +4,8 @@
 # Examples:
 #   ./provision.sh colo-server-01          # Uses colo-server-01-ubuntu workflow
 #   ./provision.sh anvil                   # Uses anvil-harvester workflow (default)
-#   ./provision.sh anvil ubuntu            # Uses anvil-ubuntu-2604 workflow
+#   ./provision.sh anvil ubuntu            # Uses anvil-ubuntu workflow
+#   ./provision.sh forge                   # Uses forge-ubuntu-2604 workflow
 #   ./provision.sh anvil harvester         # Uses anvil-harvester workflow
 set -e
 
@@ -18,11 +19,14 @@ case "$HARDWARE_NAME" in
     colo-server-01)
         WORKFLOW_NAME="colo-server-01-ubuntu"
         ;;
+    forge)
+        WORKFLOW_NAME="forge-ubuntu-2604"
+        ;;
     anvil)
         # Default to ubuntu for anvil now that it's a Proxmox-style KVM hypervisor host.
         # harvester / talos workflows still exist but are no longer the default.
         if [ -z "$WORKFLOW_TYPE" ] || [ "$WORKFLOW_TYPE" = "ubuntu" ]; then
-            WORKFLOW_NAME="anvil-ubuntu-2604"
+            WORKFLOW_NAME="anvil-ubuntu"
         elif [ "$WORKFLOW_TYPE" = "harvester" ]; then
             WORKFLOW_NAME="harvester"
         else
@@ -32,7 +36,7 @@ case "$HARDWARE_NAME" in
     *)
         echo "Unknown hardware: $HARDWARE_NAME"
         echo "Usage: $0 <hardware> [workflow]"
-        echo "  hardware: colo-server-01, anvil"
+        echo "  hardware: colo-server-01, anvil, forge"
         echo "  workflow: ubuntu, harvester (optional, hardware-specific default)"
         exit 1
         ;;

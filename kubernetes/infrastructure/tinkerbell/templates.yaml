@@ -206,9 +206,7 @@ spec:
                 network:
                   version: 2
                   ethernets:
-                    uplink:
-                      match:
-                        macaddress: "f0:4d:a2:0a:51:cb"
+                    eno1:
                       dhcp4: false
                       dhcp6: false
                       addresses:
@@ -321,7 +319,8 @@ spec:
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
 ---
-# Ubuntu 26.04 LTS (Resolute Raccoon) Installation Template for anvil
+# Ubuntu 26.04 LTS (Resolute Raccoon) Installation Template, legacy BIOS servers
+# hardwareMap keys: device_1 (MAC), hostname, ip_address (CIDR, in 108.181.38.64/27)
 # Canonical only publishes 26.04 cloud images as qcow2, so this streams the
 # official image and converts it straight onto the disk instead of image2disk.
 # Partition layout of resolute-server-cloudimg-amd64.img (differs from 24.04):
@@ -329,12 +328,12 @@ spec:
 apiVersion: tinkerbell.org/v1alpha1
 kind: Template
 metadata:
-  name: anvil-ubuntu-2604
+  name: ubuntu-2604-bios
   namespace: tink-system
 spec:
   data: |
     version: "0.1"
-    name: anvil-ubuntu-2604
+    name: ubuntu-2604-bios
     global_timeout: 2400
     tasks:
       - name: os-installation
@@ -380,11 +379,11 @@ spec:
                   ethernets:
                     uplink:
                       match:
-                        macaddress: "f0:4d:a2:0a:51:cb"
+                        macaddress: "{{.device_1}}"
                       dhcp4: false
                       dhcp6: false
                       addresses:
-                        - 108.181.38.87/27
+                        - {{.ip_address}}
                       routes:
                         - to: 0.0.0.0/0
                           via: 108.181.38.65

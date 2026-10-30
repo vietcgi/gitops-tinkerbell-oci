@@ -60,3 +60,33 @@ spec:
       facility_code: colo
     instance:
       hostname: anvil
+---
+# Hardware definition for forge (second Dell R610, svc tag 36QVVH?)
+# MAC: f0:4d:a2:0a:51:cb - from PXE console 2026-10-30
+apiVersion: tinkerbell.org/v1alpha1
+kind: Hardware
+metadata:
+  name: forge
+  namespace: tink-system
+spec:
+  disks:
+    - device: /dev/sda
+  interfaces:
+    - dhcp:
+        arch: x86_64
+        hostname: forge
+        ip:
+          address: 108.181.38.86
+          gateway: 108.181.38.65
+          netmask: 255.255.255.224
+        mac: f0:4d:a2:0a:51:cb
+        uefi: false
+      netboot:
+        # forge-ubuntu-2604 Workflow flips this via bootOptions.toggleAllowNetboot
+        allowPXE: false
+      disableDhcp: false
+  metadata:
+    facility:
+      facility_code: colo
+    instance:
+      hostname: forge
