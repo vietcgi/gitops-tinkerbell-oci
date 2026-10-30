@@ -29,7 +29,7 @@ spec:
       hostname: colo-server-01
 ---
 # Hardware definition for anvil (Dell R610)
-# MAC: f0:4d:a2:0a:51:cb - from PXE console 2026-10-30 (was 00:21:9b:a1:dc:c0)
+# MAC: 00:21:9b:a1:dc:c0 - discovered from DHCP logs
 apiVersion: tinkerbell.org/v1alpha1
 kind: Hardware
 metadata:
@@ -46,7 +46,7 @@ spec:
           address: 108.181.38.87
           gateway: 108.181.38.65
           netmask: 255.255.255.224
-        mac: f0:4d:a2:0a:51:cb
+        mac: 00:21:9b:a1:dc:c0
         uefi: false
       netboot:
         # Default false; the anvil-ubuntu Workflow uses
