@@ -16,11 +16,12 @@ spec:
     toggleAllowNetboot: true
 ---
 # Workflow for hammer Ubuntu 26.04 installation
-# Remove after install: reboot-into-os never reports success, so allowPXE stays true
+# Completes on its own: waitdaemon reboot reports SUCCESS, then toggleAllowNetboot
+# turns PXE off. A SUCCESS Workflow never re-runs; to reinstall, add a new name.
 apiVersion: tinkerbell.org/v1alpha1
 kind: Workflow
 metadata:
-  name: hammer-ubuntu-2604
+  name: hammer-ubuntu-2604-r2
   namespace: tink-system
 spec:
   templateRef: ubuntu-2604-bios
