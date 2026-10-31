@@ -133,25 +133,22 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mkdir -p /mnt/boot/efi && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true"]
-          # Reboot using nsenter (host namespace) - actually reboots the machine.
-          # SYNCHRONOUS: `reboot -f` terminates HookOS immediately, so this action
-          # never reports SUCCESS to tink-server and the workflow stays in RUNNING.
-          # That's INTENTIONAL — the supported kickstart path is `./scripts/provision.sh`
-          # which actively polls the workflow and patches Hardware.allowPXE=false the
-          # moment it detects currentAction == reboot-into-os, *before* this command
-          # fires. With that orchestration, the next BIOS PXE attempt sees allowPXE=false,
-          # Smee returns 404, handoff.ipxe falls through to :local_boot → disk → installed OS.
-          # Earlier attempts at a self-contained delayed reboot (`(sleep 30 && reboot -f) &`
-          # and `setsid` + cgroup escape) were unreliable because containerd SIGKILLs the
-          # action container's cgroup the instant the action exits, taking the subshell
-          # with it. HookOS is LinuxKit (no systemd) so systemd-run isn't available either.
-          # Do not change this action to async without first verifying the escape mechanism
-          # actually survives containerd cleanup on HookOS v0.11.1+.
+          # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
+          # from a detached container. The Workflow reaches SUCCESS, so the controller's
+          # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
+          # A synchronous `reboot -f` killed HookOS before reporting and left it RUNNING.
+          # WAIT_SECONDS is margin for the final status report, not a handshake.
           - name: reboot-into-os
-            image: justincormack/nsenter1
-            timeout: 30
+            image: ghcr.io/jacobweinstock/waitdaemon:0.4.3
+            timeout: 90
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            command: ["/bin/sh", "-c", "sync && reboot -f"]
+            environment:
+              IMAGE: alpine:3.20
+              WAIT_SECONDS: "30"
+              CONTAINER_RUNTIME: docker
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
 # Uses nsenter to refresh partition table after image2disk (fixes mount failures)
@@ -299,25 +296,22 @@ spec:
             timeout: 180
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda16 /mnt/boot && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
-          # Reboot using nsenter (host namespace) - actually reboots the machine.
-          # SYNCHRONOUS: `reboot -f` terminates HookOS immediately, so this action
-          # never reports SUCCESS to tink-server and the workflow stays in RUNNING.
-          # That's INTENTIONAL — the supported kickstart path is `./scripts/provision.sh`
-          # which actively polls the workflow and patches Hardware.allowPXE=false the
-          # moment it detects currentAction == reboot-into-os, *before* this command
-          # fires. With that orchestration, the next BIOS PXE attempt sees allowPXE=false,
-          # Smee returns 404, handoff.ipxe falls through to :local_boot → disk → installed OS.
-          # Earlier attempts at a self-contained delayed reboot (`(sleep 30 && reboot -f) &`
-          # and `setsid` + cgroup escape) were unreliable because containerd SIGKILLs the
-          # action container's cgroup the instant the action exits, taking the subshell
-          # with it. HookOS is LinuxKit (no systemd) so systemd-run isn't available either.
-          # Do not change this action to async without first verifying the escape mechanism
-          # actually survives containerd cleanup on HookOS v0.11.1+.
+          # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
+          # from a detached container. The Workflow reaches SUCCESS, so the controller's
+          # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
+          # A synchronous `reboot -f` killed HookOS before reporting and left it RUNNING.
+          # WAIT_SECONDS is margin for the final status report, not a handshake.
           - name: reboot-into-os
-            image: justincormack/nsenter1
-            timeout: 30
+            image: ghcr.io/jacobweinstock/waitdaemon:0.4.3
+            timeout: 90
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "sync && reboot -f"]
+            command: ["/bin/sh", "-c", "sync && reboot -f"]
+            environment:
+              IMAGE: alpine:3.20
+              WAIT_SECONDS: "30"
+              CONTAINER_RUNTIME: docker
+            volumes:
+              - /var/run/docker.sock:/var/run/docker.sock
 ---
 # Ubuntu 26.04 LTS (Resolute Raccoon) Installation Template, legacy BIOS servers
 # hardwareMap keys: device_1 (MAC), hostname, ip_address (CIDR, in 108.181.38.64/27)
@@ -480,6 +474,7 @@ spec:
           # from a detached container. The Workflow reaches SUCCESS, so the controller's
           # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
           # A synchronous `reboot -f` killed HookOS before reporting and left it RUNNING.
+          # WAIT_SECONDS is margin for the final status report, not a handshake.
           - name: reboot-into-os
             image: ghcr.io/jacobweinstock/waitdaemon:0.4.3
             timeout: 90
@@ -487,7 +482,7 @@ spec:
             command: ["/bin/sh", "-c", "sync && reboot -f"]
             environment:
               IMAGE: alpine:3.20
-              WAIT_SECONDS: "10"
+              WAIT_SECONDS: "30"
               CONTAINER_RUNTIME: docker
             volumes:
               - /var/run/docker.sock:/var/run/docker.sock

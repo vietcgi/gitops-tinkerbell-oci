@@ -21,7 +21,7 @@ case "$HARDWARE_NAME" in
         WORKFLOW_NAME="colo-server-01-ubuntu"
         ;;
     hammer)
-        WORKFLOW_NAME="hammer-ubuntu-2604-r2"
+        WORKFLOW_NAME="hammer-ubuntu-2604-r3"
         ;;
     forge)
         WORKFLOW_NAME="forge-ubuntu-2604"

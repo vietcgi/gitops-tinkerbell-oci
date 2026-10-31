@@ -25,6 +25,8 @@ set tinkerbell_tls false
 
 echo Chainloading to http://${tink_host}/ipxe/script/${net0/mac}/auto.ipxe ...
 chain http://${tink_host}/ipxe/script/${net0/mac}/auto.ipxe || goto chain_error
+# If the Tinkerbell script returns instead of booting, don't fall into boot_rescue
+goto local_boot
 
 :boot_rescue
 echo ====================================================
