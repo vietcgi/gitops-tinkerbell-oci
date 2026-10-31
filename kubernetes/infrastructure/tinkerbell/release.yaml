@@ -32,7 +32,7 @@ spec:
   chart:
     spec:
       chart: tinkerbell
-      version: "v0.21.1-f2610bdd"
+      version: "v0.25.0"
       sourceRef:
         kind: HelmRepository
         name: tinkerbell
@@ -134,12 +134,17 @@ spec:
                 path: /spec/ports/0/appProtocol
                 value: http
           # tinkerbell: gRPC uses HTTP/2 plaintext (h2c)
+          # Port order since v0.23: dhcp, tftp, syslog, grpc, http. The test op
+          # fails the render if the order changes, instead of patching the wrong port.
           - target:
               kind: Service
               name: tinkerbell
             patch: |
+              - op: test
+                path: /spec/ports/3/name
+                value: grpc
               - op: add
-                path: /spec/ports/5/appProtocol
+                path: /spec/ports/3/appProtocol
                 value: kubernetes.io/h2c
 ---
 # HTTPRoute for HookOS artifacts (kernel, initramfs) - HTTPS
@@ -209,7 +214,7 @@ spec:
               replaceFullPath: /ipxe/script/auto.ipxe
       backendRefs:
         - name: tinkerbell
-          port: 7171
+          port: 7080
     # Smee HTTP endpoints
     - matches:
         - path:
@@ -217,7 +222,7 @@ spec:
             value: /ipxe
       backendRefs:
         - name: tinkerbell
-          port: 7171
+          port: 7080
 ---
 # GRPCRoute for Tink Server gRPC API
 # tink-agent in HookOS connects here to get workflows
@@ -267,7 +272,7 @@ spec:
               replaceFullPath: /ipxe/script/auto.ipxe
       backendRefs:
         - name: tinkerbell
-          port: 7171
+          port: 7080
     # iPXE endpoints - serve directly over HTTP
     - matches:
         - path:
@@ -275,7 +280,7 @@ spec:
             value: /ipxe
       backendRefs:
         - name: tinkerbell
-          port: 7171
+          port: 7080
     # Note: No catch-all redirect - gRPC traffic needs to reach GRPCRoute on HTTP
 ---
 # PodDisruptionBudget for availability
