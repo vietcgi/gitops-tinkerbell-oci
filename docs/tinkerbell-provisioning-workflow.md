@@ -143,7 +143,8 @@ iDRAC has a private address, reachable only from the colo boot host:
 | Host | iDRAC | Configured |
 |---|---|---|
 | hammer | 10.77.0.11/24, no gateway | 2026-10-31 |
-| forge, anvil | not yet (factory 192.168.0.x) | |
+| forge | 10.77.0.12/24, no gateway | 2026-10-31 |
+| anvil | 10.77.0.13/24, no gateway | 2026-10-31 |
 
 - `.67` has `10.77.0.1/24` on eno1, added at boot by `bmc-net.service`
   (`scripts/colo/bmc-net.service`, installed in `/etc/systemd/system`, enabled).
@@ -161,11 +162,18 @@ iDRAC has a private address, reachable only from the colo boot host:
 
 iDRAC settings (applied in-band from the host OS with `ipmitool`, root):
 
-- `root`: strong random password (kept out of band); `tinkops` (user 3):
-  OPERATOR, the only account `bmc-power` uses.
+- `root`: strong random password (kept out of band), **no IPMI-over-LAN access**
+  (`channel setaccess 1 2 ... privilege=15`); it still works in-band and in the
+  web UI. `tinkops` (user 3): OPERATOR, the only account usable over LAN and the
+  only one `bmc-power` uses.
 - IPMI over LAN on (`lan set 1 access on`), lanplus with **cipher suite 3 only**
-  (AES, HMAC-SHA1) at OPERATOR level. SOL off. Verified: suites 0-2 and 4-14,
-  ADMINISTRATOR logins over LAN, wrong passwords and `root/calvin` are refused.
+  (AES, HMAC-SHA1) at OPERATOR level. SOL off. Verified on all three: suites
+  0-2, 4-14 and 17, `tinkops` as ADMINISTRATOR, root at any level, wrong
+  passwords and `root/calvin` are refused.
+- The cipher-suite limit does **not** stop a user whose own channel privilege is
+  ADMINISTRATOR: before the root lockout, root got a full ADMINISTRATOR session
+  over LAN with suite 3 (found and fixed 2026-10-31). Always restrict root's
+  channel access, not only `cipher_privs`.
 - **iDRAC6 firmware 1.92 quirk:** the `cipher_privs` string is shifted by one
   position (character *k* sets suite *k+1*). Suite 3 only at OPERATOR is
   `XXoXXXXXXXXXXXX`, not the spec's `XXXoXXXXXXXXXXX` (which disables suite 3).
@@ -175,21 +183,22 @@ iDRAC settings (applied in-band from the host OS with `ipmitool`, root):
   power change while the LOM renegotiates its link, then answers again, also
   with the server off (tested on hammer 2026-10-31). Wait before re-querying.
 
-To add a host (e.g. forge, at 10.77.0.12):
+To add a host (next free address: 10.77.0.14):
 
 ```bash
 # on the host (as root): IPMI over LAN, cipher 3 only, operator user, private IP
-ipmitool user set password 2 '<new root password>'
-ipmitool user set name 3 tinkops && ipmitool user set password 3 '<operator password>'
+ipmitool user set password 2 '<new root password>' 20
+ipmitool channel setaccess 1 2 callin=off ipmi=off link=off privilege=15   # no root over LAN
+ipmitool user set name 3 tinkops && ipmitool user set password 3 '<operator password>' 20
 ipmitool channel setaccess 1 3 callin=on ipmi=on link=on privilege=3 && ipmitool user enable 3
 ipmitool lan set 1 cipher_privs XXoXXXXXXXXXXXX && ipmitool sol set enabled false 1
-ipmitool lan set 1 ipsrc static && ipmitool lan set 1 ipaddr 10.77.0.12
-ipmitool lan set 1 netmask 255.255.255.0 && ipmitool lan set 1 defgw ipaddr 0.0.0.0
+ipmitool lan set 1 ipsrc static && ipmitool lan set 1 netmask 255.255.255.0
+ipmitool lan set 1 defgw ipaddr 0.0.0.0 && ipmitool lan set 1 ipaddr 10.77.0.14   # IP last
 ipmitool lan set 1 access on
-# on .67 (as root)
-echo "forge 10.77.0.12 tinkops" >> /etc/bmc/hosts
-printf '%s' '<operator password>' > /etc/bmc/forge.pass && chmod 600 /etc/bmc/forge.pass
-bmc-power forge status
+# on .67 (as root); the iDRAC can take a few seconds to answer on the new IP
+echo "<host> 10.77.0.14 tinkops" >> /etc/bmc/hosts
+printf '%s' '<operator password>' > /etc/bmc/<host>.pass && chmod 600 /etc/bmc/<host>.pass
+bmc-power <host> status
 ```
 
 Caveat: the iDRAC shares eno1's segment. A private address hides it from the
