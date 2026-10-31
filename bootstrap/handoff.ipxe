@@ -4,24 +4,51 @@ echo ====================================================
 echo   Colocation Bootstrapper: Handing off to OCI...
 echo ====================================================
 
-# 1. Define OCI Variables
-# REPLACE THIS with your OCI Tinkerbell Public IP or Hostname
-set tink_ip tinkerbell.qualityspace.com
+echo Configuring network via DHCP...
+dhcp || goto dhcp_error
 
-# 2. Set Critical Global Variables for HookOS
-# Without 'grpc_authority', HookOS will hang.
-set tink_server ${tink_ip}
-set grpc_authority ${tink_ip}:80
+echo Network configured:
+echo   IP: ${net0/ip}
+echo   Gateway: ${net0/gateway}
+echo   DNS: ${net0/dns}
+echo   MAC: ${net0/mac}
+
+# TEMPORARY: data-recovery boot for old cPanel server (MAC d4:be:d9:af:71:a0).
+iseq ${net0/mac} d4:be:d9:af:71:a0 && goto boot_rescue ||
+
+:chain_tink
+set tink_host tinkerbell.qualityspace.com
+
+set tink_server ${tink_host}
+set grpc_authority tinkerbell.qualityspace.com:80
 set tinkerbell_tls false
 
-# 3. Chainload to the OCI Smee server
-# If the chainload fails (e.g. 404 No Workflow), fall back to local boot
-chain http://${tink_ip}/ipxe/script/${mac}/auto.ipxe || goto local_boot
+echo Chainloading to http://${tink_host}/ipxe/script/${net0/mac}/auto.ipxe ...
+chain http://${tink_host}/ipxe/script/${net0/mac}/auto.ipxe || goto chain_error
+
+:boot_rescue
+echo ====================================================
+echo   Booting SystemRescue 13.00 (data-recovery mode)
+echo   IP 108.181.38.89, root SSH pubkey + pw rescue2026
+echo ====================================================
+set rescue_base http://108.181.38.67:8080/rescue
+kernel ${rescue_base}/sysresccd/boot/x86_64/vmlinuz initrd=sysresccd.img archisobasedir=sysresccd archiso_http_srv=${rescue_base}/ ip=108.181.38.89::108.181.38.65:255.255.255.224 net.ifnames=0 biosdevname=0 nofirewall rootpass=rescue2026
+initrd ${rescue_base}/sysresccd/boot/x86_64/sysresccd.img
+boot
+
+:dhcp_error
+echo DHCP failed!
+sleep 5
+dhcp || goto local_boot
+goto chain_tink
+
+:chain_error
+echo Chain failed - OCI Tinkerbell did not provide a boot script.
+sleep 3
 
 :local_boot
-echo OCI Tinkerbell did not provide a boot script (No active workflow?).
-echo Returning to BIOS to boot the next device (local disk)...
 # Don't sanboot: on the R610 PERC, iPXE INT13 sanboot of 0x80/0x81 fails with
 # "Input/output error" and strands the box at the iPXE prompt. exit hands
 # control back to the BIOS boot order (NIC first, then HDD).
+echo Returning to BIOS to boot the next device (local disk)...
 exit
