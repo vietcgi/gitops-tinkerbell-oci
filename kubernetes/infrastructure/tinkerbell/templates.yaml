@@ -1,6 +1,6 @@
 ---
 # Ubuntu 24.04 LTS (Noble Numbat) Installation Template
-# Uses nsenter to refresh partition table after image2disk (fixes mount failures)
+# Uses nsenter to refresh the partition table after writing the image (fixes mount failures)
 apiVersion: tinkerbell.org/v1alpha1
 kind: Template
 metadata:
@@ -19,29 +19,36 @@ spec:
           - /dev/console:/dev/console
           - /lib/firmware:/lib/firmware:ro
         actions:
+          # Official Ubuntu 24.04 cloud image, pinned dated build. SHA256 is from that
+          # directory's SHA256SUMS (signed by the UEC Image Automatic Signing Key,
+          # D2EB44626FDDC30B513D5BB71A5D6C4C7DB87C81). The old source,
+          # https://hookos.qualityspace.com/noble.raw.gz, returns 404.
+          # Layout: sda1 = root, sda14 = BIOS boot, sda15 = EFI, sda16 = /boot
+          # Any failure once writing starts zeroes the first 64 MiB and last 1 MiB.
           - name: stream-ubuntu-image
-            image: quay.io/tinkerbell/actions/image2disk@sha256:cfdc3db1895c91914a151b9cdc2e48abb44e703ebe9145af44d557221822a29c
-            timeout: 300
+            image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+            timeout: 900
             environment:
-              DEST_DISK: /dev/sda
-              IMG_URL: https://hookos.qualityspace.com/noble.raw.gz
-              COMPRESSED: "true"
+              BASE_URL: https://cloud-images.ubuntu.com/noble/20261017
+              IMG: noble-server-cloudimg-amd64.img
+              SHA256: 04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94
+            command: ["/bin/sh", "-c", "set -e; apk add --no-cache qemu-img curl; cd /tmp; curl -fL --retry 3 -o $IMG $BASE_URL/$IMG; echo \"$SHA256  $IMG\" | sha256sum -c -; inval() { echo invalidating /dev/sda; N=$(blockdev --getsz /dev/sda); dd if=/dev/zero of=/dev/sda bs=1M count=64 conv=fsync 2>/dev/null; dd if=/dev/zero of=/dev/sda bs=512 seek=$((N-2048)) count=2048 conv=fsync 2>/dev/null; }; OK=0; trap 'rc=$?; set +e; [ $OK = 1 ] || inval; exit $rc' EXIT; qemu-img convert -p -n -f qcow2 -O raw $IMG /dev/sda; sync; OK=1; rm -f $IMG"]
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
-          # This fixes the issue where image2disk's BLKRRPART call fails silently
           # Using justincormack/nsenter1 - a minimal image designed specifically for this purpose
-          # Note: partprobe may fail if partitions are in use, so we use || true
+          # partprobe must succeed, and each partition later steps use must exist with
+          # the kernel's start/size matching the newly written table (no stale mappings).
           - name: partition-refresh
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "set -e; partprobe /dev/sda; udevadm settle 2>/dev/null || sleep 2; ls -la /dev/sda*; T=$(parted -s -m /dev/sda unit s print); for p in 1 15 16; do test -b /dev/sda$p || { echo /dev/sda$p missing; exit 1; }; d=$(stat -L -c '%t:%T' /dev/sda$p); y=/sys/dev/block/$((0x${d%:*})):$((0x${d#*:})); k=\"$(cat $y/start) $(cat $y/size)\"; w=$(echo \"$T\" | awk -F: -v p=$p '$1==p {sub(/s$/,\"\",$2); sub(/s$/,\"\",$4); print $2\" \"$4}'); [ \"$k\" = \"$w\" ] || { echo \"sda$p: kernel start/size $k != on-disk $w (stale partition table)\"; exit 1; }; echo \"sda$p ok: $k\"; done"]
           # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
           # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
           - name: reset-cloud-init-state
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 120
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/*; rm -f /mnt/etc/machine-id; echo uninitialized > /mnt/etc/machine-id; sync"]
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile@sha256:f9e05eae1f073dc4dd1198f186c0a0f99de1a3aa3b53a6eac3d2e08053271fba
             timeout: 90
@@ -119,16 +126,14 @@ spec:
               GID: "0"
               MODE: "0644"
               DIRMODE: "0755"
-          # Install GRUB bootloader for UEFI using nsenter (mount EFI partition first)
-          # Ubuntu cloud images use sda15 for EFI System Partition
-          # --removable installs to /EFI/BOOT/BOOTX64.EFI (UEFI fallback path)
-          # IMPORTANT: Must create /boot/efi directory - Ubuntu cloud images have empty /boot
-          # Idempotent: cleans up any existing mounts before starting
+          # Install GRUB for UEFI. /boot is its own partition (sda16) on 24.04 cloud
+          # images; it must be mounted or update-grub writes a grub.cfg the booted
+          # system never sees. --removable installs the UEFI fallback /EFI/BOOT/BOOTX64.EFI.
           - name: install-grub-uefi
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mkdir -p /mnt/boot/efi && mount /dev/sda15 /mnt/boot/efi && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot/efi /mnt 2>/dev/null || true"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; mount /dev/sda16 /mnt/boot; mkdir -p /mnt/boot/efi; mount /dev/sda15 /mnt/boot/efi; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable; chroot /mnt update-grub; sync"]
           # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
           # from a detached container. The Workflow reaches SUCCESS, so the controller's
           # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
@@ -147,7 +152,7 @@ spec:
               - /var/run/docker.sock:/var/run/docker.sock
 ---
 # Ubuntu 24.04 LTS Installation Template for anvil (Dell R610)
-# Uses nsenter to refresh partition table after image2disk (fixes mount failures)
+# Uses nsenter to refresh the partition table after writing the image (fixes mount failures)
 apiVersion: tinkerbell.org/v1alpha1
 kind: Template
 metadata:
@@ -166,28 +171,37 @@ spec:
           - /dev/console:/dev/console
           - /lib/firmware:/lib/firmware:ro
         actions:
+          # Custom Ubuntu 24.04 image with bnx2 firmware pre-installed, served by .67.
+          # Layout: sda1 = root, sda14 = BIOS boot, sda15 = EFI, sda16 = /boot
+          # SHA256 of the file as served on 2026-10-30. If the image is rebuilt,
+          # update SHA256 (sha256sum /var/www/html/noble-bnx2.raw.gz on .67).
+          # Streams straight to disk (2.3 GB gz, 5.5 GiB raw: too big for HookOS RAM)
+          # and hashes the same bytes on the way. No curl --retry: a retry would resend
+          # from byte 0 into the same pipe. Any failure once writing starts (download,
+          # gzip error, write, checksum mismatch) zeroes the first 64 MiB and the last
+          # 1 MiB of the disk and fails the action.
           - name: stream-ubuntu-image
-            image: quay.io/tinkerbell/actions/image2disk@sha256:cfdc3db1895c91914a151b9cdc2e48abb44e703ebe9145af44d557221822a29c
-            timeout: 600
+            image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+            timeout: 900
             environment:
-              DEST_DISK: /dev/sda
-              # Custom Ubuntu image with bnx2 firmware pre-installed
               IMG_URL: http://108.181.38.67:8081/noble-bnx2.raw.gz
-              COMPRESSED: "true"
+              SHA256: b0eefcc27e0e42762890b116b274bb17960b280b554b163cf69ba81b84f2e0ab
+            command: ["/bin/sh", "-c", "set -eu -o pipefail; apk add --no-cache curl; mkfifo /tmp/img.fifo; inval() { echo invalidating /dev/sda; N=$(blockdev --getsz /dev/sda); dd if=/dev/zero of=/dev/sda bs=1M count=64 conv=fsync 2>/dev/null; dd if=/dev/zero of=/dev/sda bs=512 seek=$((N-2048)) count=2048 conv=fsync 2>/dev/null; }; OK=0; trap 'rc=$?; set +e; [ $OK = 1 ] || inval; exit $rc' EXIT; sha256sum < /tmp/img.fifo > /tmp/img.sum & H=$!; curl -fsSL $IMG_URL | tee /tmp/img.fifo | gunzip -c | dd of=/dev/sda bs=4M conv=fsync; wait $H; read -r GOT _ < /tmp/img.sum; [ \"$GOT\" = \"$SHA256\" ] || { echo \"SHA256 mismatch: got $GOT want $SHA256\"; exit 1; }; echo \"SHA256 OK $GOT\"; sync; OK=1"]
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
-          # Note: partprobe may fail if partitions are in use, so we use || true
+          # partprobe must succeed, and each partition later steps use must exist with
+          # the kernel's start/size matching the newly written table (no stale mappings).
           - name: partition-refresh
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "set -e; partprobe /dev/sda; udevadm settle 2>/dev/null || sleep 2; ls -la /dev/sda*; T=$(parted -s -m /dev/sda unit s print); for p in 1 14 16; do test -b /dev/sda$p || { echo /dev/sda$p missing; exit 1; }; d=$(stat -L -c '%t:%T' /dev/sda$p); y=/sys/dev/block/$((0x${d%:*})):$((0x${d#*:})); k=\"$(cat $y/start) $(cat $y/size)\"; w=$(echo \"$T\" | awk -F: -v p=$p '$1==p {sub(/s$/,\"\",$2); sub(/s$/,\"\",$4); print $2\" \"$4}'); [ \"$k\" = \"$w\" ] || { echo \"sda$p: kernel start/size $k != on-disk $w (stale partition table)\"; exit 1; }; echo \"sda$p ok: $k\"; done"]
           # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
           # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
           - name: reset-cloud-init-state
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 120
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/*; rm -f /mnt/etc/machine-id; echo uninitialized > /mnt/etc/machine-id; sync"]
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile@sha256:f9e05eae1f073dc4dd1198f186c0a0f99de1a3aa3b53a6eac3d2e08053271fba
             timeout: 90
@@ -278,8 +292,11 @@ spec:
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda16 /mnt/boot && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS'; mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt update-initramfs -u -k all; echo 'Firmware files:'; ls -la /mnt/lib/firmware/bnx2/ 2>/dev/null || true; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; mount /dev/sda16 /mnt/boot; if ls /lib/firmware/bnx2/* >/dev/null 2>&1; then mkdir -p /mnt/lib/firmware/bnx2; cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/; else echo 'No bnx2 firmware in HookOS'; fi; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt update-initramfs -u -k all; sync"]
           # Install GRUB bootloader for BIOS/MBR using nsenter
+          # --target=i386-pc is explicit: without it grub-install picks the platform of
+          # however HookOS itself booted (x86_64-efi on a UEFI boot) and fails or
+          # installs the wrong loader.
           # Must bind mount /dev, /proc, /sys for grub-install to detect disk properly
           # Ubuntu cloud images have kernel on sda16 (boot partition), must mount to /boot
           # Idempotent: cleans up mounts before starting
@@ -287,7 +304,7 @@ spec:
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda16 /mnt/boot && mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt grub-install /dev/sda && chroot /mnt update-grub; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; mount /dev/sda16 /mnt/boot; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=i386-pc /dev/sda; chroot /mnt update-grub; sync"]
           # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
           # from a detached container. The Workflow reaches SUCCESS, so the controller's
           # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
@@ -333,6 +350,7 @@ spec:
           # To move to a newer build: change BASE_URL and SHA256 together (from that
           # directory's SHA256SUMS).
           # -n: target is an existing block device, so qemu-img writes zeros explicitly
+          # Any failure once writing starts zeroes the first 64 MiB and last 1 MiB.
           - name: stream-ubuntu-image
             image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
             timeout: 900
@@ -340,21 +358,22 @@ spec:
               BASE_URL: https://cloud-images.ubuntu.com/resolute/20261016
               IMG: resolute-server-cloudimg-amd64.img
               SHA256: 5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5
-            command: ["/bin/sh", "-c", "set -e; apk add --no-cache qemu-img curl; cd /tmp; curl -fL --retry 3 -o $IMG $BASE_URL/$IMG; echo \"$SHA256  $IMG\" | sha256sum -c -; qemu-img convert -p -n -f qcow2 -O raw $IMG /dev/sda; sync; rm -f $IMG"]
+            command: ["/bin/sh", "-c", "set -e; apk add --no-cache qemu-img curl; cd /tmp; curl -fL --retry 3 -o $IMG $BASE_URL/$IMG; echo \"$SHA256  $IMG\" | sha256sum -c -; inval() { echo invalidating /dev/sda; N=$(blockdev --getsz /dev/sda); dd if=/dev/zero of=/dev/sda bs=1M count=64 conv=fsync 2>/dev/null; dd if=/dev/zero of=/dev/sda bs=512 seek=$((N-2048)) count=2048 conv=fsync 2>/dev/null; }; OK=0; trap 'rc=$?; set +e; [ $OK = 1 ] || inval; exit $rc' EXIT; qemu-img convert -p -n -f qcow2 -O raw $IMG /dev/sda; sync; OK=1; rm -f $IMG"]
           # CRITICAL: Refresh partition table using nsenter to run in host mount namespace
-          # Note: partprobe may fail if partitions are in use, so we use || true
+          # partprobe must succeed, and each partition later steps use must exist with
+          # the kernel's start/size matching the newly written table (no stale mappings).
           - name: partition-refresh
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 60
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "partprobe /dev/sda || true; sleep 2; ls -la /dev/sda*"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "set -e; partprobe /dev/sda; udevadm settle 2>/dev/null || sleep 2; ls -la /dev/sda*; T=$(parted -s -m /dev/sda unit s print); for p in 1 13 14; do test -b /dev/sda$p || { echo /dev/sda$p missing; exit 1; }; d=$(stat -L -c '%t:%T' /dev/sda$p); y=/sys/dev/block/$((0x${d%:*})):$((0x${d#*:})); k=\"$(cat $y/start) $(cat $y/size)\"; w=$(echo \"$T\" | awk -F: -v p=$p '$1==p {sub(/s$/,\"\",$2); sub(/s$/,\"\",$4); print $2\" \"$4}'); [ \"$k\" = \"$w\" ] || { echo \"sda$p: kernel start/size $k != on-disk $w (stale partition table)\"; exit 1; }; echo \"sda$p ok: $k\"; done"]
           # Clear cloud-init state so it runs fresh on first boot with new instance-id/hostname
           # Idempotent: unmounts first if already mounted, handles missing dirs gracefully
           - name: reset-cloud-init-state
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 120
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/* 2>/dev/null; rm -f /mnt/etc/machine-id; echo 'uninitialized' > /mnt/etc/machine-id; umount /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; rm -rf /mnt/var/lib/cloud/instances/* /mnt/var/lib/cloud/instance /mnt/var/lib/cloud/data/*; rm -f /mnt/etc/machine-id; echo uninitialized > /mnt/etc/machine-id; sync"]
           - name: write-netplan
             image: quay.io/tinkerbell/actions/writefile@sha256:f9e05eae1f073dc4dd1198f186c0a0f99de1a3aa3b53a6eac3d2e08053271fba
             timeout: 90
@@ -453,14 +472,14 @@ spec:
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; mount /dev/sda1 /mnt && mount /dev/sda13 /mnt/boot && mkdir -p /mnt/lib/firmware/bnx2 && cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/ 2>/dev/null || echo 'No bnx2 firmware in HookOS'; mount --bind /dev /mnt/dev && mount --bind /proc /mnt/proc && mount --bind /sys /mnt/sys && chroot /mnt update-initramfs -u -k all; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; mount /dev/sda13 /mnt/boot; if ls /lib/firmware/bnx2/* >/dev/null 2>&1; then mkdir -p /mnt/lib/firmware/bnx2; cp -v /lib/firmware/bnx2/* /mnt/lib/firmware/bnx2/; else echo 'No bnx2 firmware in HookOS'; fi; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt update-initramfs -u -k all; sync"]
           # Install GRUB for legacy BIOS (server boot mode is BIOS; image has BIOS boot partition sda14)
           # Fails the action on error instead of masking it with a trailing `|| true`
           - name: install-grub
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 180
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt 2>/dev/null || true; set -e; mount /dev/sda1 /mnt; mount /dev/sda13 /mnt/boot; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=i386-pc /dev/sda; chroot /mnt update-grub; sync; umount /mnt/sys /mnt/proc /mnt/dev /mnt/boot /mnt"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "cleanup() { sync; for m in $(awk '$2 ~ \"^/mnt(/|$)\" {print $2}' /proc/mounts | sort -r); do umount $m 2>/dev/null || umount -l $m; done; awk '$2 ~ \"^/mnt(/|$)\" {f=1} END {exit (f ? 1 : 0)}' /proc/mounts; }; cleanup || { echo stale mounts under /mnt; exit 1; }; set -e; trap 'rc=$?; set +e; cleanup || { echo unmount failed; [ $rc -ne 0 ] || rc=1; }; exit $rc' EXIT; mount /dev/sda1 /mnt; mount /dev/sda13 /mnt/boot; mount --bind /dev /mnt/dev; mount --bind /proc /mnt/proc; mount --bind /sys /mnt/sys; chroot /mnt grub-install --target=i386-pc /dev/sda; chroot /mnt update-grub; sync"]
           # waitdaemon reports SUCCESS to tink-server first, then reboots WAIT_SECONDS later
           # from a detached container. The Workflow reaches SUCCESS, so the controller's
           # Post step (toggleAllowNetboot) sets allowPXE=false and the next boot is from disk.
@@ -507,11 +526,15 @@ spec:
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "/sbin/apk add --no-cache kexec-tools && /usr/sbin/kexec --version"]
           # Download Harvester kernel and initrd (custom initrd with bnx2 firmware for Dell R610)
+          # and verify them. The rootfs and install config are fetched again by the
+          # installer itself (root=live:, config_url), so they can only be checked here,
+          # just before kexec; that narrows but does not close the window.
+          # Hashes are of the files on .67 as of 2026-10-30; update them with the files.
           - name: download-harvester-files
             image: justincormack/nsenter1@sha256:e876f694a4cb6ff9e6861197ea3680fe2e3c5ab773a1e37ca1f13171f7f5798e
             timeout: 600
             pid: host
-            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "mkdir -p /tmp/harvester && cd /tmp/harvester && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-vmlinuz-amd64 -O vmlinuz && wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-initrd-bnx2-amd64 -O initrd && echo 'Downloaded:' && ls -la /tmp/harvester/"]
+            command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "set -e; mkdir -p /tmp/harvester; cd /tmp/harvester; wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-vmlinuz-amd64 -O vmlinuz; wget -q http://108.181.38.67:8081/harvester/harvester-v1.6.1-initrd-bnx2-amd64 -O initrd; printf '%s  %s\\n' cc7d6bd09d50895d326e5c9f7814d58d7c51d420e29d87089d22e35fdaf354a1 vmlinuz db1f2dc141a5446ebaedf99828fe2aae4a0e3f11d1dd690e566d655115ed4e5a initrd | sha256sum -c -; R=$(wget -qO- http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-bnx2-amd64.squashfs | sha256sum | cut -d' ' -f1); [ $R = 03c84204d33c7b394f9664bdda5b1e789b0398f66f9ea0d6485555179ed0ae10 ] || { echo rootfs SHA256 mismatch: $R; exit 1; }; C=$(wget -qO- http://108.181.38.67:8081/harvester/config-create.yaml | sha256sum | cut -d' ' -f1); [ $C = 27caabf1fb616e0a63afc7d4faa44b07998ac18787bc7c1c83641353576c1e3e ] || { echo config SHA256 mismatch: $C; exit 1; }; ls -la /tmp/harvester/"]
           # Kexec into Harvester installer
           # The kernel cmdline tells Harvester where to get rootfs and config
           # Using static IP because DHCP times out before dracut can fetch rootfs
@@ -522,50 +545,3 @@ spec:
             timeout: 60
             pid: host
             command: ["/usr/bin/nsenter", "-t", "1", "-m", "-u", "-i", "-n", "--", "/bin/sh", "-c", "kexec -l /tmp/harvester/vmlinuz --initrd=/tmp/harvester/initrd --command-line='ip=108.181.38.87::108.181.38.65:255.255.255.224:anvil:eth0:none net.ifnames=0 biosdevname=0 pci=nomsi rd.cos.disable rd.noverifyssl console=tty1 root=live:http://108.181.38.67:8081/harvester/harvester-v1.6.1-rootfs-bnx2-amd64.squashfs harvester.install.automatic=true harvester.install.config_url=http://108.181.38.67:8081/harvester/config-create.yaml harvester.install.skipchecks=true' && kexec -e"]
----
-# Talos Linux v1.11.5 Installation Template for Dell R610 (anvil)
-# Uses quay.io images which may be more accessible than Docker Hub
-# Talos handles disk partitioning, installation, and cluster bootstrap
-apiVersion: tinkerbell.org/v1alpha1
-kind: Template
-metadata:
-  name: talos
-  namespace: tink-system
-spec:
-  data: |
-    version: "0.1"
-    name: talos
-    global_timeout: 1800
-    tasks:
-      - name: talos-installation
-        worker: "{{.device_1}}"
-        volumes:
-          - /dev:/dev
-          - /dev/console:/dev/console
-          - /lib/firmware:/lib/firmware:ro
-        actions:
-          # Download Talos kernel and initramfs using writefile action (has wget)
-          - name: download-talos-kernel
-            image: quay.io/tinkerbell/actions/writefile@sha256:f9e05eae1f073dc4dd1198f186c0a0f99de1a3aa3b53a6eac3d2e08053271fba
-            timeout: 600
-            environment:
-              DEST_DISK: /dev/sda
-              FS_TYPE: ext4
-              DEST_PATH: /tmp/talos/vmlinuz
-              CONTENTS: ""
-              UID: "0"
-              GID: "0"
-              MODE: "0644"
-              DIRMODE: "0755"
-          # Use kexec action to boot Talos
-          # The kexec action has kexec-tools built in
-          - name: kexec-talos
-            image: quay.io/tinkerbell/actions/kexec@sha256:fa1cd4f0651919d6a48c107457fbaaec5f1a4e1b5f968dd579b4358b20234eff
-            timeout: 300
-            pid: host
-            environment:
-              BLOCK_DEVICE: /dev/sda1
-              FS_TYPE: ext4
-              KERNEL_PATH: /tmp/talos/vmlinuz
-              INITRD_PATH: /tmp/talos/initramfs.xz
-              CMD_LINE: "init_on_alloc=1 slab_nomerge pti=on console=tty0 console=ttyS1,115200n8 talos.platform=metal net.ifnames=0 biosdevname=0 talos.config=http://108.181.38.67:8081/talos/controlplane.yaml"

@@ -20,9 +20,10 @@ spec:
       protocol: HTTP
       port: 42113
       hostname: tinkerbell.qualityspace.com
-      # No allowedRoutes.kinds: Cilium 1.18 checks GRPCRoutes against it as if
-      # they were HTTPRoutes, so kinds: [GRPCRoute] attaches nothing (empty
-      # route table, grpc-status 12). Same-namespace still limits attachment.
+      # No allowedRoutes.kinds: in Cilium 1.18.4 getGatewayKindForObject has no
+      # GRPCRoute case and returns "Unknown", so isKindAllowed rejects a GRPCRoute
+      # whenever kinds is set (operator/pkg/gateway-api/helpers.go). Result was an
+      # empty route table (grpc-status 12). Same-namespace still limits attachment.
       allowedRoutes:
         namespaces:
           from: Same
