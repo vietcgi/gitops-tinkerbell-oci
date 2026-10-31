@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# bmc-power: power-control the colo servers' iDRACs from the colo boot host (.67).
+# Installed root-owned at /usr/local/sbin/bmc-power on .67; run with sudo.
+#
+#   bmc-power <host> status     read the chassis power state
+#   bmc-power <host> pxe-boot   one-time PXE on next boot, then power-cycle
+#                               (or power on if the host is off)
+#
+# Each iDRAC has a private address on the shared eno1 segment, reachable only
+# from .67 (10.77.0.1/24). Hosts are listed in /etc/bmc/hosts ("name ip user");
+# each host's operator password is in /etc/bmc/<name>.pass (root, 0600). The
+# iDRACs accept only cipher suite 3 at OPERATOR level (see docs).
+#
+set -euo pipefail
+umask 077
+
+CONF=/etc/bmc/hosts
+NET_ADDR=10.77.0.1/24
+NET_DEV=eno1
+
+die() { echo "bmc-power: $1" >&2; logger -t bmc-power "error: $1" || true; exit "${2:-1}"; }
+
+[ "$(id -u)" = 0 ] || die "must run as root (sudo)" 2
+[ $# -eq 2 ] || die "usage: bmc-power <host> status|pxe-boot" 2
+host=$1 action=$2
+[[ $host =~ ^[a-z0-9-]+$ ]] || die "invalid host name: $host" 2
+
+line=$(awk -v h="$host" '$1 == h {print $2, $3}' "$CONF")
+[ -n "$line" ] || die "unknown host: $host (not in $CONF)" 2
+read -r ip user <<<"$line"
+pass=/etc/bmc/$host.pass
+[ -r "$pass" ] || die "missing password file $pass" 2
+
+# The management address is not in netplan; restore it if a network reload dropped it.
+ip -o addr show dev "$NET_DEV" | grep -q " $NET_ADDR " || ip addr add "$NET_ADDR" dev "$NET_DEV"
+
+# -R 1: no automatic retransmits, so a power command is never sent twice.
+B=(ipmitool -I lanplus -H "$ip" -U "$user" -f "$pass" -L OPERATOR -C 3 -N 5 -R 1)
+
+case $action in
+  status)
+    "${B[@]}" chassis power status
+    ;;
+  pxe-boot)
+    state=$("${B[@]}" chassis power status) || die "cannot read power state of $host" 3
+    "${B[@]}" chassis bootdev pxe >/dev/null || die "failed to set one-time PXE on $host" 3
+    flags=$("${B[@]}" chassis bootparam get 5) || die "cannot read back boot flags of $host" 3
+    if ! grep -q "Force PXE" <<<"$flags" || ! grep -q "only next boot" <<<"$flags"; then
+      die "one-time PXE not confirmed on $host" 3
+    fi
+    logger -t bmc-power "$host: one-time PXE set, power was '$state'"
+    case $state in
+      "Chassis Power is on")  "${B[@]}" chassis power cycle ;;
+      "Chassis Power is off") "${B[@]}" chassis power on ;;
+      *) die "unexpected power state for $host: $state" 3 ;;
+    esac
+    logger -t bmc-power "$host: power command sent"
+    ;;
+  *)
+    die "unknown action: $action (status|pxe-boot)" 2
+    ;;
+esac
