@@ -28,14 +28,39 @@ BIOS PXE -> .67 dhcpd (fixed IP by MAC) -> TFTP undionly-embedded.kpxe
 
 ## Install / reinstall a server
 
+One command (wipes the host's disk):
+
+```bash
+scripts/reinstall.sh hammer --dry-run   # preflight only, changes nothing
+scripts/reinstall.sh hammer
+scripts/reinstall.sh anvil --allow-production --confirm anvil   # production
+```
+
+It runs the manual steps below and checks each one: clean `main` in sync with
+origin, exactly one Workflow for the host, MAC matches the Hardware, no install
+already active, iDRAC reachable; then it arms the Workflow, waits for Flux to
+apply that exact commit (Workflow PENDING, `allowPXE=true`, iPXE script served),
+sets one-time PXE and power-cycles through the iDRAC (see "iDRAC access" below),
+watches to SUCCESS, confirms PXE is off and commits `disabled: true`. The power
+command is never retried: if it fails, the script stops and says the host is
+armed (its next PXE boot reinstalls it).
+
+Manual steps (also what to do for a host without iDRAC access):
+
 1. In `kubernetes/infrastructure/tinkerbell/workflows.yaml`, give the host's single
    Workflow a **new name** (e.g. `hammer-ubuntu-2604-r4`) and set `disabled: false`.
    Rename instead of adding a second Workflow: tink-server stops at the first
    non-pending Workflow for an agent, so a leftover one blocks the new install.
 2. Push. Smee starts returning 200 for the MAC.
-3. Reboot the server (SSH, or power-cycle from the console).
+3. Reboot the server: `ssh kevin@108.181.38.67 sudo bmc-power <host> pxe-boot`,
+   or SSH into the host, or power-cycle from the console.
 4. Wait for SUCCESS: Smee flips to 404, the box reboots from disk.
 5. Commit `disabled: true` on that Workflow.
+
+Do not set `bootOptions.bootMode` on the Workflows: with `netboot`, Tinkerbell's
+Rufio would issue its own hard power-off/PXE/power-on through a BMC it cannot
+reach. Leaving it unset, the Workflow goes straight to PENDING and the power
+step is done by `bmc-power` instead.
 
 Step 5 matters: Workflow status lives only in the cluster. If the object is ever
 recreated (cluster rebuild, someone deletes it), an enabled spec runs the install
@@ -59,7 +84,8 @@ What Tinkerbell v0.25 actually does, which dictates the order:
 
 So, in this order:
 
-1. **Power the server off** (console or iDRAC). Off, not reboot.
+1. **Power the server off**: `ssh kevin@108.181.38.67 sudo bmc-power <host> off`
+   (or the console). Off, not reboot.
 2. In Git set `disabled: true` on that Workflow, push, and make Flux apply it:
    ```bash
    K="sudo k3s kubectl"
@@ -108,3 +134,61 @@ curl -s -o /dev/null -w '%{http_code}\n' http://tinkerbell.qualityspace.com/ipxe
 Installed hosts are SSH key only (`ssh_pwauth: false`, `lock_passwd: true`).
 No password hashes live in this repo: it is public, so any hash is crackable
 offline. Console passwords, where set, are managed out of band.
+
+## iDRAC access
+
+The R610s' iDRAC6 runs in **shared** NIC mode (it uses the eno1 cable). Each
+iDRAC has a private address, reachable only from the colo boot host:
+
+| Host | iDRAC | Configured |
+|---|---|---|
+| hammer | 10.77.0.11/24, no gateway | 2026-10-31 |
+| forge, anvil | not yet (factory 192.168.0.x) | |
+
+- `.67` has `10.77.0.1/24` on eno1 (`bmc-power` re-adds it if a network reload
+  drops it; it is not in netplan).
+- `scripts/colo/bmc-power` is installed root-owned at `/usr/local/sbin/bmc-power`
+  on `.67`: `sudo bmc-power <host> status|pxe-boot|off`. Hosts are listed in
+  `/etc/bmc/hosts` (`name ip user`); each operator password is in
+  `/etc/bmc/<host>.pass` (root, 0600). No BMC credential is in Git or the cluster.
+- Rufio (Tinkerbell's BMC controller) is not used: the cluster runs in OCI and
+  has no route to the iDRACs. One command from `.67` covers the reinstalls here,
+  works when the host OS is dead, and keeps the BMC off any tunnel.
+
+iDRAC settings (applied in-band from the host OS with `ipmitool`, root):
+
+- `root`: strong random password (kept out of band); `tinkops` (user 3):
+  OPERATOR, the only account `bmc-power` uses.
+- IPMI over LAN on (`lan set 1 access on`), lanplus with **cipher suite 3 only**
+  (AES, HMAC-SHA1) at OPERATOR level. SOL off. Verified: suites 0-2 and 4-14,
+  ADMINISTRATOR logins over LAN, wrong passwords and `root/calvin` are refused.
+- **iDRAC6 firmware 1.92 quirk:** the `cipher_privs` string is shifted by one
+  position (character *k* sets suite *k+1*). Suite 3 only at OPERATOR is
+  `XXoXXXXXXXXXXXX`, not the spec's `XXXoXXXXXXXXXXX` (which disables suite 3).
+- The iDRAC web UI (80/443) and SSH (22) also listen on the private address;
+  `ipmitool` cannot turn them off.
+- Shared mode: the iDRAC drops off the network for ~40 s to ~1.5 min after each
+  power change while the LOM renegotiates its link, then answers again, also
+  with the server off (tested on hammer 2026-10-31). Wait before re-querying.
+
+To add a host (e.g. forge, at 10.77.0.12):
+
+```bash
+# on the host (as root): IPMI over LAN, cipher 3 only, operator user, private IP
+ipmitool user set password 2 '<new root password>'
+ipmitool user set name 3 tinkops && ipmitool user set password 3 '<operator password>'
+ipmitool channel setaccess 1 3 callin=on ipmi=on link=on privilege=3 && ipmitool user enable 3
+ipmitool lan set 1 cipher_privs XXoXXXXXXXXXXXX && ipmitool sol set enabled false 1
+ipmitool lan set 1 ipsrc static && ipmitool lan set 1 ipaddr 10.77.0.12
+ipmitool lan set 1 netmask 255.255.255.0 && ipmitool lan set 1 defgw ipaddr 0.0.0.0
+ipmitool lan set 1 access on
+# on .67 (as root)
+echo "forge 10.77.0.12 tinkops" >> /etc/bmc/hosts
+printf '%s' '<operator password>' > /etc/bmc/forge.pass && chmod 600 /etc/bmc/forge.pass
+bmc-power forge status
+```
+
+Caveat: the iDRAC shares eno1's segment. A private address hides it from the
+internet but not from anything else on that L2 segment. If other colo tenants
+share it, move the iDRAC to its dedicated port (iDRAC6 Enterprise; hammer reports
+a vFlash sensor, which suggests one) or to a VLAN the colo switch enforces.

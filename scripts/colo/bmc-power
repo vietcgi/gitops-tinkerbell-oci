@@ -6,6 +6,7 @@
 #   bmc-power <host> status     read the chassis power state
 #   bmc-power <host> pxe-boot   one-time PXE on next boot, then power-cycle
 #                               (or power on if the host is off)
+#   bmc-power <host> off        hard power-off (to abort an install)
 #
 # Each iDRAC has a private address on the shared eno1 segment, reachable only
 # from .67 (10.77.0.1/24). Hosts are listed in /etc/bmc/hosts ("name ip user");
@@ -22,7 +23,7 @@ NET_DEV=eno1
 die() { echo "bmc-power: $1" >&2; logger -t bmc-power "error: $1" || true; exit "${2:-1}"; }
 
 [ "$(id -u)" = 0 ] || die "must run as root (sudo)" 2
-[ $# -eq 2 ] || die "usage: bmc-power <host> status|pxe-boot" 2
+[ $# -eq 2 ] || die "usage: bmc-power <host> status|pxe-boot|off" 2
 host=$1 action=$2
 [[ $host =~ ^[a-z0-9-]+$ ]] || die "invalid host name: $host" 2
 
@@ -57,7 +58,11 @@ case $action in
     esac
     logger -t bmc-power "$host: power command sent"
     ;;
+  off)
+    logger -t bmc-power "$host: power off requested"
+    "${B[@]}" chassis power off
+    ;;
   *)
-    die "unknown action: $action (status|pxe-boot)" 2
+    die "unknown action: $action (status|pxe-boot|off)" 2
     ;;
 esac
