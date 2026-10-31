@@ -6,3 +6,4 @@ resources:
   - templates.yaml
   - hardware.yaml
   - workflows.yaml
+  - grpc-gateway.yaml

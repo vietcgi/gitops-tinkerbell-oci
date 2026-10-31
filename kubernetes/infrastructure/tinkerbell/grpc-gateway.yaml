@@ -1,0 +1,42 @@
+# Colo-only gRPC entry point for HookOS tink-agent.
+#
+# tink-server has no client auth and picks work by the caller-supplied agent ID,
+# so it must not be reachable from the internet. This is a separate Gateway (its
+# own Cilium Envoy config) on port 42113; the OCI security list only admits the
+# colo /27 on 42113 (terraform/modules/vcn). A listener on the shared
+# main-gateway is NOT isolated: Cilium applied a GRPCRoute attached to a 42113
+# section to the :80 virtual host too and broke iPXE (415) on 2026-10-30.
+# Plain HTTP (h2c): Cilium HTTPS listeners don't negotiate ALPN (cilium#30794).
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: tinkerbell-grpc
+  namespace: tink-system
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: grpc
+      protocol: HTTP
+      port: 42113
+      hostname: tinkerbell.qualityspace.com
+      allowedRoutes:
+        kinds:
+          - kind: GRPCRoute
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: tinkerbell-grpc-colo
+  namespace: tink-system
+spec:
+  parentRefs:
+    - name: tinkerbell-grpc
+      sectionName: grpc
+  hostnames:
+    - tinkerbell.qualityspace.com
+  rules:
+    - backendRefs:
+        - name: tinkerbell
+          port: 42113
