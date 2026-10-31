@@ -71,12 +71,10 @@ spec:
 
 
         smee:
-          # Enable DHCP in reservation mode - centralized DHCP for all sites
-          # Smee assigns IPs based on Hardware CRD definitions (MAC-to-IP reservations)
-          # Sites access DHCP via Tailscale subnet routing or DHCP relay
-          dhcpEnabled: true
-          # DHCP mode: reservation (default) - requires Hardware records for all clients
-          # Alternative modes: proxy (external DHCP for IP, Smee for PXE) or auto-proxy
+          # DHCP off: the colo boot host (.67, isc-dhcp) hands out IPs and the
+          # boot filename. Smee runs as a ClusterIP pod in OCI and never saw a
+          # DHCP packet (dhcp_total all 0). Script/binary HTTP serving is separate.
+          dhcpEnabled: false
           # Serve the iPXE script at /ipxe/script/<mac>/auto.ipxe (chart default true).
           # The old keys httpIpxeScriptEnabled/httpIpxeScriptUrl were never chart
           # values and were silently ignored.
@@ -283,15 +281,3 @@ spec:
         - name: tinkerbell
           port: 7080
     # Note: No catch-all redirect - gRPC traffic needs to reach GRPCRoute on HTTP
----
-# PodDisruptionBudget for availability
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: tinkerbell-pdb
-  namespace: tink-system
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: tinkerbell

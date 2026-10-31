@@ -28,17 +28,18 @@ sudo systemctl restart tftpd-hpa
 echo "Setting up iPXE binaries..."
 sudo mkdir -p /srv/tftp
 
-# Download ipxe.efi for UEFI systems
-if [ ! -f /srv/tftp/ipxe.efi ]; then
-    echo "Downloading ipxe.efi..."
-    sudo wget -O /srv/tftp/ipxe.efi http://boot.ipxe.org/ipxe.efi
-fi
+# Build iPXE from a pinned commit (the one deployed on .67 on 2026-10-30) so
+# rebuilds are reproducible. Bump IPXE_COMMIT deliberately and retest a PXE boot.
+IPXE_COMMIT="b87b90415f45b9e98a9c9db088d827c442ed6ddb"
 
-# Build undionly-embedded.kpxe with static IP fallback for BIOS systems
-# This is needed for Dell R610 (Broadcom bnx2) which has buggy UNDI driver
-echo "Building undionly-embedded.kpxe with static IP fallback..."
+# undionly-embedded.kpxe for BIOS systems (Dell R610 Broadcom bnx2 UNDI) with an
+# embedded script that retries DHCP; ipxe.efi for UEFI systems, built from the
+# same source instead of downloading an unpinned binary over plain HTTP.
+echo "Building iPXE $IPXE_COMMIT..."
 IPXE_BUILD_DIR="/tmp/ipxe-build-$$"
-git clone --depth 1 https://github.com/ipxe/ipxe.git "$IPXE_BUILD_DIR"
+git init -q "$IPXE_BUILD_DIR"
+git -C "$IPXE_BUILD_DIR" fetch -q --depth 1 https://github.com/ipxe/ipxe.git "$IPXE_COMMIT"
+git -C "$IPXE_BUILD_DIR" checkout -q FETCH_HEAD
 
 # Create embedded script that retries DHCP. No static fallback: a shared
 # fallback IP (it was .87) collides with whichever host owns it (anvil), so
@@ -63,7 +64,10 @@ IPXESCRIPT
 
 cd "$IPXE_BUILD_DIR/src"
 make bin/undionly.kpxe EMBED="$IPXE_BUILD_DIR/embed.ipxe"
+make bin-x86_64-efi/ipxe.efi
 sudo cp bin/undionly.kpxe /srv/tftp/undionly-embedded.kpxe
+sudo cp bin-x86_64-efi/ipxe.efi /srv/tftp/ipxe.efi
+sha256sum /srv/tftp/undionly-embedded.kpxe /srv/tftp/ipxe.efi
 cd -
 rm -rf "$IPXE_BUILD_DIR"
 

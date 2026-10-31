@@ -159,6 +159,64 @@ spec:
     # Kube State Metrics
     kubeStateMetrics:
       enabled: true
+    kube-state-metrics:
+      # Tinkerbell Workflow/Hardware state for provisioning alerts
+      # (tinkerbell-alerting-rules.yaml). Tinkerbell itself exports no
+      # Workflow-state metric.
+      rbac:
+        extraRules:
+          - apiGroups: ["tinkerbell.org"]
+            resources: ["workflows", "hardware"]
+            verbs: ["list", "watch"]
+      customResourceState:
+        enabled: true
+        config:
+          spec:
+            resources:
+              - groupVersionKind:
+                  group: tinkerbell.org
+                  version: v1alpha1
+                  kind: Workflow
+                metricNamePrefix: tinkerbell_workflow
+                labelsFromPath:
+                  workflow: [metadata, name]
+                  namespace: [metadata, namespace]
+                  hardware: [spec, hardwareRef]
+                metrics:
+                  - name: state
+                    help: "Workflow state (1 for the current state)"
+                    each:
+                      type: StateSet
+                      stateSet:
+                        labelName: state
+                        path: [status, state]
+                        list: [PREPARING, PENDING, RUNNING, POST, SUCCESS, FAILED, TIMEOUT]
+                  - name: disabled
+                    help: "1 if spec.disabled is true"
+                    each:
+                      type: Gauge
+                      gauge:
+                        path: [spec, disabled]
+                        nilIsZero: true
+              - groupVersionKind:
+                  group: tinkerbell.org
+                  version: v1alpha1
+                  kind: Hardware
+                metricNamePrefix: tinkerbell_hardware
+                labelsFromPath:
+                  hardware: [metadata, name]
+                  namespace: [metadata, namespace]
+                metrics:
+                  - name: allow_pxe
+                    help: "1 if interfaces[].netboot.allowPXE is true"
+                    each:
+                      type: Gauge
+                      gauge:
+                        path: [spec, interfaces]
+                        valueFrom: [netboot, allowPXE]
+                        labelsFromPath:
+                          mac: [dhcp, mac]
+                        nilIsZero: true
 
     # Disable components not needed for K3s
     kubeEtcd:

@@ -1,50 +1,62 @@
+# Tinkerbell provisioning alerts.
+# tinkerbell_workflow_* / tinkerbell_hardware_* come from kube-state-metrics
+# customResourceState (kubernetes/infrastructure/monitoring/release.yaml);
+# up / controller_runtime_* come from the tinkerbell ServiceMonitor.
+# Prometheus only loads rules labelled release: kube-prometheus-stack.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: tinkerbell-alerts
   namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
 spec:
   groups:
   - name: tinkerbell.rules
     rules:
-    - alert: TinkerbellComponentsDown
-      expr: up{job=~"tinkerbell-.*"} == 0
+    - alert: TinkerbellDown
+      expr: up{namespace="tink-system", service="tinkerbell"} == 0 or absent(up{namespace="tink-system", service="tinkerbell"})
       for: 5m
       labels:
         severity: critical
       annotations:
-        summary: "Tinkerbell component {{ $labels.instance }} is down"
-        description: "Tinkerbell component {{ $labels.job }} at {{ $labels.instance }} has been down for more than 5 minutes."
-    
-    - alert: HighProvisioningFailureRate
+        summary: "Tinkerbell is not being scraped or is down"
+        description: "No PXE boot scripts, HookOS gRPC or workflow processing while this fires."
+
+    - alert: TinkerbellWorkflowFailed
+      expr: tinkerbell_workflow_state{state=~"FAILED|TIMEOUT"} == 1
+      for: 1m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Workflow {{ $labels.workflow }} ({{ $labels.hardware }}) is {{ $labels.state }}"
+        description: "A failed or timed-out Workflow leaves allowPXE on, so {{ $labels.hardware }} keeps booting HookOS. See docs/tinkerbell-provisioning-workflow.md."
+
+    - alert: TinkerbellWorkflowStuck
+      expr: tinkerbell_workflow_state{state=~"PREPARING|PENDING|RUNNING|POST"} == 1
+      for: 2h
+      labels:
+        severity: warning
+      annotations:
+        summary: "Workflow {{ $labels.workflow }} ({{ $labels.hardware }}) has been {{ $labels.state }} for 2h"
+        description: "An armed install that never finishes. If the host reboots into PXE it will run and wipe the disk."
+
+    - alert: TinkerbellPXEEnabledWithoutInstall
       expr: |
-        (
-          rate(tink_workflow_errors_total[5m]) 
-          / 
-          rate(tink_workflow_requests_total[5m])
-        ) > 0.05
-      for: 2m
+        max by (namespace, hardware) (tinkerbell_hardware_allow_pxe) == 1
+        unless on (namespace, hardware)
+        max by (namespace, hardware) (tinkerbell_workflow_state{state=~"PREPARING|PENDING|RUNNING|POST"} == 1)
+      for: 30m
       labels:
         severity: warning
       annotations:
-        summary: "High provisioning failure rate detected"
-        description: "More than 5% of provisioning workflows are failing in the last 5 minutes."
-    
-    - alert: TinkerbellQueueBacklog
-      expr: tink_workflow_queue_length > 10
-      for: 10m
+        summary: "{{ $labels.hardware }} has allowPXE=true with no install in progress"
+        description: "The host will boot HookOS instead of its disk on the next reboot."
+
+    - alert: TinkerbellReconcileErrors
+      expr: sum by (controller) (increase(controller_runtime_reconcile_errors_total{namespace="tink-system"}[15m])) > 0
+      for: 15m
       labels:
         severity: warning
       annotations:
-        summary: "Tinkerbell workflow queue backlog detected"
-        description: "Tinkerbell workflow queue has more than 10 items waiting for more than 10 minutes."
-    
-    - alert: HardwareProvisioningStuck
-      expr: |
-        time() - max by(hardware) (tink_last_status_update_timestamp) > 600
-      for: 10m
-      labels:
-        severity: warning
-      annotations:
-        summary: "Hardware provisioning stuck"
-        description: "Hardware {{ $labels.hardware }} has not updated status for more than 10 minutes."
+        summary: "Tinkerbell {{ $labels.controller }} controller is failing to reconcile"

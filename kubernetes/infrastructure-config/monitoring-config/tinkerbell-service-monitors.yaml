@@ -1,5 +1,6 @@
-# ServiceMonitor for Tinkerbell unified service
-# The new Tinkerbell chart deploys all components in a single pod
+# ServiceMonitor for Tinkerbell (single binary, chart v0.25+)
+# Since v0.23 Smee, Tootles, metrics and health share one HTTP port named
+# "http" (7080). The Service is labelled app: tinkerbell by the chart.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -10,11 +11,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: tinkerbell
+      app: tinkerbell
   namespaceSelector:
     matchNames:
       - tink-system
   endpoints:
-    - port: httpSmee
+    - port: http
       interval: 30s
       path: /metrics

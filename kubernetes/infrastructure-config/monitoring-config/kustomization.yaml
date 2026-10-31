@@ -5,4 +5,3 @@ resources:
   - network-monitoring.yaml
   - tinkerbell-alerting-rules.yaml
   - tinkerbell-service-monitors.yaml
-  - bare-metal-health.yaml
