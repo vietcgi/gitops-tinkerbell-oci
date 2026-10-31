@@ -77,9 +77,10 @@ spec:
           dhcpEnabled: true
           # DHCP mode: reservation (default) - requires Hardware records for all clients
           # Alternative modes: proxy (external DHCP for IP, Smee for PXE) or auto-proxy
-          # Enable HTTP iPXE script serving at /auto.ipxe
-          httpIpxeScriptEnabled: true
-          httpIpxeScriptUrl: "https://tinkerbell.qualityspace.com"
+          # Serve the iPXE script at /ipxe/script/<mac>/auto.ipxe (chart default true).
+          # The old keys httpIpxeScriptEnabled/httpIpxeScriptUrl were never chart
+          # values and were silently ignored.
+          ipxeHttpScriptEnabled: true
           # gRPC endpoint for HookOS tink-worker to connect to
           # Using HTTP:80 due to Cilium ALPN bug (https://github.com/cilium/cilium/issues/30794)
           # GRPCRoute only works on HTTP listener, not HTTPS
