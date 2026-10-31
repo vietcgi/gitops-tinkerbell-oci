@@ -40,19 +40,25 @@ echo "Building undionly-embedded.kpxe with static IP fallback..."
 IPXE_BUILD_DIR="/tmp/ipxe-build-$$"
 git clone --depth 1 https://github.com/ipxe/ipxe.git "$IPXE_BUILD_DIR"
 
-# Create embedded script with DHCP + static IP fallback
+# Create embedded script that retries DHCP. No static fallback: a shared
+# fallback IP (it was .87) collides with whichever host owns it (anvil), so
+# replies go to the wrong MAC and the chain times out.
 cat > "$IPXE_BUILD_DIR/embed.ipxe" << 'IPXESCRIPT'
 #!ipxe
-dhcp || echo DHCP failed, using static config
-isset ${ip} || set ip 108.181.38.87
-isset ${netmask} || set netmask 255.255.255.224
-isset ${gateway} || set gateway 108.181.38.65
-isset ${dns} || set dns 8.8.8.8
+set attempt:int32 0
+:retry_dhcp
+dhcp && goto chain || inc attempt
+iseq ${attempt} 5 && goto failed || echo DHCP failed, retry ${attempt}/5 in 5s
+sleep 5
+goto retry_dhcp
 
-ifopen net0
-
+:chain
 echo Chainloading to Tinkerbell...
-chain http://108.181.38.67:8080/handoff.ipxe || shell
+chain http://108.181.38.67:8080/handoff.ipxe || goto failed
+
+:failed
+echo Network boot failed, returning to BIOS boot order
+exit
 IPXESCRIPT
 
 cd "$IPXE_BUILD_DIR/src"
