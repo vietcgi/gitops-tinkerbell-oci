@@ -20,11 +20,8 @@ chain http://${tink_ip}/ipxe/script/${mac}/auto.ipxe || goto local_boot
 
 :local_boot
 echo OCI Tinkerbell did not provide a boot script (No active workflow?).
-echo Booting from local disk...
-iseq ${platform} pcbios && goto bios_boot || goto uefi_boot
-
-:bios_boot
-sanboot --no-describe --drive 0x80 || exit
-
-:uefi_boot
+echo Returning to BIOS to boot the next device (local disk)...
+# Don't sanboot: on the R610 PERC, iPXE INT13 sanboot of 0x80/0x81 fails with
+# "Input/output error" and strands the box at the iPXE prompt. exit hands
+# control back to the BIOS boot order (NIC first, then HDD).
 exit
