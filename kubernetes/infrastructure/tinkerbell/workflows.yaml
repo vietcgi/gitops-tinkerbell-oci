@@ -27,11 +27,12 @@ spec:
     toggleAllowNetboot: true
 ---
 # Workflow for hammer Ubuntu 26.04 installation (r3 succeeded 2026-10-30;
-# r4 failed at partition-refresh: HookOS has no parted; r5 uses the busybox check)
+# r4 failed at partition-refresh: HookOS has no parted; r5 succeeded with the
+# busybox check; r6 = repeat install)
 apiVersion: tinkerbell.org/v1alpha1
 kind: Workflow
 metadata:
-  name: hammer-ubuntu-2604-r5
+  name: hammer-ubuntu-2604-r6
   namespace: tink-system
 spec:
   disabled: false
