@@ -86,6 +86,20 @@ metadata:
 spec:
   gatewayClassName: cilium
   listeners:
+    # Tinkerbell gRPC (HookOS tink-agent). Own port so the OCI security list can
+    # limit it to the colo /27; only tink-system routes may attach.
+    - name: tinkerbell-grpc
+      protocol: HTTP
+      port: 42113
+      hostname: tinkerbell.qualityspace.com
+      allowedRoutes:
+        kinds:
+          - kind: GRPCRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: tink-system
     # HTTP listener - for HTTP→HTTPS redirects and iPXE
     - name: http
       protocol: HTTP
