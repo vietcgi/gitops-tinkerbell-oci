@@ -145,8 +145,12 @@ iDRAC has a private address, reachable only from the colo boot host:
 | hammer | 10.77.0.11/24, no gateway | 2026-10-31 |
 | forge, anvil | not yet (factory 192.168.0.x) | |
 
-- `.67` has `10.77.0.1/24` on eno1 (`bmc-power` re-adds it if a network reload
-  drops it; it is not in netplan).
+- `.67` has `10.77.0.1/24` on eno1, added at boot by `bmc-net.service`
+  (`scripts/colo/bmc-net.service`, installed in `/etc/systemd/system`, enabled).
+  It is deliberately not in netplan; `bmc-power` also re-adds it if a network
+  reload drops it.
+- `nginx` on `.67` serves `handoff.ipxe` (:8080) and must be enabled at boot
+  (`systemctl is-enabled nginx`); it was running but disabled until 2026-10-31.
 - `scripts/colo/bmc-power` is installed root-owned at `/usr/local/sbin/bmc-power`
   on `.67`: `sudo bmc-power <host> status|pxe-boot|off`. Hosts are listed in
   `/etc/bmc/hosts` (`name ip user`); each operator password is in

@@ -1,0 +1,16 @@
+# Adds the iDRAC management address to eno1 at boot on the colo boot host (.67).
+# Installed at /etc/systemd/system/bmc-net.service; enable with
+# `systemctl enable --now bmc-net`. Kept out of netplan so a bad edit can never
+# cut .67 off the network; bmc-power also re-adds the address if it goes missing.
+[Unit]
+Description=iDRAC management address 10.77.0.1/24 on eno1
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'ip -o addr show dev eno1 | grep -q " 10.77.0.1/24 " || ip addr add 10.77.0.1/24 dev eno1'
+
+[Install]
+WantedBy=multi-user.target
