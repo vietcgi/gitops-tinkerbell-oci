@@ -6,6 +6,7 @@
 # colo /27 on 42113 (terraform/modules/vcn). A listener on the shared
 # main-gateway is NOT isolated: Cilium applied a GRPCRoute attached to a 42113
 # section to the :80 virtual host too and broke iPXE (415) on 2026-10-30.
+# HookOS reaches it via grpc_authority (release.yaml).
 # Plain HTTP (h2c): Cilium HTTPS listeners don't negotiate ALPN (cilium#30794).
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -19,9 +20,10 @@ spec:
       protocol: HTTP
       port: 42113
       hostname: tinkerbell.qualityspace.com
+      # No allowedRoutes.kinds: Cilium 1.18 checks GRPCRoutes against it as if
+      # they were HTTPRoutes, so kinds: [GRPCRoute] attaches nothing (empty
+      # route table, grpc-status 12). Same-namespace still limits attachment.
       allowedRoutes:
-        kinds:
-          - kind: GRPCRoute
         namespaces:
           from: Same
 ---

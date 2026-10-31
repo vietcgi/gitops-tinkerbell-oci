@@ -79,12 +79,11 @@ spec:
           # The old keys httpIpxeScriptEnabled/httpIpxeScriptUrl were never chart
           # values and were silently ignored.
           ipxeHttpScriptEnabled: true
-          # gRPC endpoint for HookOS tink-worker to connect to
-          # Using HTTP:80 due to Cilium ALPN bug (https://github.com/cilium/cilium/issues/30794)
-          # GRPCRoute only works on HTTP listener, not HTTPS
-          # Override grpc_authority via extra kernel args since publicIP must be an IP
+          # gRPC endpoint for HookOS tink-agent: the colo-only Gateway on 42113
+          # (grpc-gateway.yaml). Not on :80 - tink-server has no client auth.
+          # Overridden via extra kernel args since publicIP must be an IP.
           ipxeHttpScriptExtraKernelArgs:
-            - "grpc_authority=tinkerbell.qualityspace.com:80"
+            - "grpc_authority=tinkerbell.qualityspace.com:42113"
             - "tink_ssh_authorized_keys=c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCQVFDNS9scmhIQVFkVFJmcHB6ZkE3RW1uL2hjU0hvYkVwbDZMek5Gc3hEOVBpMCtzUlQ4SzJzaGR3WjAydmsrZVpUM2NoaTZQd2Y1Q2I4Mi9OUzd5TGxxNGVVeEcvSUtwMUh4VktUZFRRZ0EzRTBIRi9tbXd2ZUNudVI1NWlVdk5ObGlSeVdiQm5ZL3V3NXlmaFZyREl5QXdQK3JFMTZNL1JPbG9yYnNrSjRSNmZGTXI0TTRvMlBqQUZMMktIKzFsbk1ydGJOb292cWc3L3hMQmhpREdoczZzTkhsNEUzNFBISUNrSDdYcWtoKzdUQ0RicGpER3hNdU5MNVJHMXpNRzFmTEZmSlgwUUlRYW5OMmpISlUyTkVNQlZXQitCeE5ZV0tXQUNIUWV2dWJFUjhLZHhrc0JqM05ld2k2NXp4MmVuRG9LTkU2a3B6aTJscVBkRHBVWHd3VmYga2V2aW4="
 
 
@@ -223,27 +222,6 @@ spec:
         - name: tinkerbell
           port: 7080
 ---
-# GRPCRoute for Tink Server gRPC API
-# tink-agent in HookOS connects here to get workflows
-# NOTE: Using HTTP listener due to Cilium ALPN bug (https://github.com/cilium/cilium/issues/30794)
-# HTTPS listener doesn't negotiate ALPN, breaking gRPC clients
-apiVersion: gateway.networking.k8s.io/v1
-kind: GRPCRoute
-metadata:
-  name: tinkerbell-grpc
-  namespace: tink-system
-spec:
-  parentRefs:
-    - name: main-gateway
-      namespace: ingress
-      sectionName: http
-  hostnames:
-    - tinkerbell.qualityspace.com
-  rules:
-    - backendRefs:
-        - name: tinkerbell
-          port: 42113
----
 # HTTP Route for Tinkerbell iPXE endpoints (no redirect for iPXE)
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -280,4 +258,5 @@ spec:
       backendRefs:
         - name: tinkerbell
           port: 7080
-    # Note: No catch-all redirect - gRPC traffic needs to reach GRPCRoute on HTTP
+    # No catch-all redirect: iPXE can't follow it to HTTPS. gRPC is served only
+    # by the colo-only Gateway in grpc-gateway.yaml.

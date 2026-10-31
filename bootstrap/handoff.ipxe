@@ -20,7 +20,7 @@ iseq ${net0/mac} d4:be:d9:af:71:a0 && goto boot_rescue ||
 set tink_host tinkerbell.qualityspace.com
 
 set tink_server ${tink_host}
-set grpc_authority tinkerbell.qualityspace.com:80
+set grpc_authority tinkerbell.qualityspace.com:42113
 set tinkerbell_tls false
 
 echo Chainloading to http://${tink_host}/ipxe/script/${net0/mac}/auto.ipxe ...
