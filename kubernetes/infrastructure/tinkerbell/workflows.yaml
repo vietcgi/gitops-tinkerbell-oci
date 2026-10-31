@@ -35,7 +35,7 @@ metadata:
   name: hammer-ubuntu-2604-r7
   namespace: tink-system
 spec:
-  disabled: false
+  disabled: true
   templateRef: ubuntu-2604-bios
   hardwareRef: hammer
   hardwareMap:
