@@ -101,7 +101,7 @@ if [ $dry_run = 1 ]; then
 fi
 
 reconcile() {  # wait until Flux has applied commit $1
-  local sha=$1 i
+  local sha=$1
   kf annotate gitrepository flux-system "reconcile.fluxcd.io/requestedAt=$(date +%s)" --overwrite >/dev/null
   for _ in $(seq 1 60); do
     [[ $(kf get gitrepository flux-system -o 'jsonpath={.status.artifact.revision}') == *"$sha"* ]] && break
