@@ -9,6 +9,6 @@
 #   age-keygen -o ~/colo-private/colo-age.key     # prints the public key
 #
 creation_rules:
-  - path_regex: fleet/colo/secrets/.*\.sops\.ya?ml$
+  - path_regex: fleet/colo/enc/.*\.sops\.ya?ml$
     # age public key (recipient). Starts with "age1...".
     age: age1placeholderplaceholderplaceholderplaceholderplaceholderplco0colo

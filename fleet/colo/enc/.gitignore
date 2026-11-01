@@ -1,0 +1,10 @@
+# Only SOPS-encrypted files and this dir's docs may be committed. Plaintext/keys
+# are blocked here AND by the repo root .gitignore (*secret*, *.key). The dir is
+# named "enc" (not "secrets") so the encrypted, commit-intended *.sops.yaml files
+# are not swept up by the root *secret* safety-net.
+*
+!.gitignore
+!README.md
+!*.sops.yaml
+!nodes/
+!nodes/*.sops.yaml

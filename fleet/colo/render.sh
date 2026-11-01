@@ -26,7 +26,7 @@ APPLY_IP=""
 [[ "${1:-}" == "--apply" ]] && APPLY_IP="${2:?--apply needs <node-ip>}"
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-SEC="$DIR/secrets"
+SEC="$DIR/enc"
 OUT="$DIR/out"; mkdir -p "$OUT"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
@@ -37,7 +37,7 @@ esac
 
 # --- decrypt inputs into tmpfs ---------------------------------------------------
 sops -d "$SEC/inventory.sops.yaml"        > "$TMP/inventory.yaml"
-sops -d "$SEC/machine-secrets.sops.yaml"  > "$TMP/secrets.yaml"
+sops -d "$SEC/machine-pki.sops.yaml"      > "$TMP/secrets.yaml"
 sops -d "$SEC/nodes/$HOST.sops.yaml"       > "$TMP/node.yaml"
 # Talos ingress firewall documents (NetworkDefaultActionConfig + NetworkRuleConfig
 # with the real allow-list). SOPS-encrypted because the allow-list is inventory.

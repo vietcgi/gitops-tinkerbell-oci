@@ -15,15 +15,15 @@ fleet/colo/
   nodes/<host>.yaml.example # per-node patch TEMPLATES (placeholders)    [public]
   schematic.yaml            # Image Factory bnx2-bnx2x pin               [public]
   render.sh                 # compose base+role+node+secrets -> config   [public]
-  secrets/*.sops.yaml       # machine secrets + inventory + filled nodes [SOPS]
+  enc/*.sops.yaml           # machine PKI + inventory + firewall + filled nodes [SOPS]
   out/                      # rendered configs (gitignored)
 ```
 
 ## Node ADD — fully from Git
 
 1. Add `nodes/<host>.yaml.example` (role, interface) and the filled, **encrypted**
-   `secrets/nodes/<host>.sops.yaml` (real MAC/IP) + the node's entry in
-   `secrets/inventory.sops.yaml`. Commit.
+   `enc/nodes/<host>.sops.yaml` (real MAC/IP) + the node's entry in
+   `enc/inventory.sops.yaml`. Commit.
 2. `./render.sh <host>` → validated `out/<host>.machineconfig.yaml` (adopts the
    existing cluster secrets; deterministic).
 3. Stage it on the colo boot host and one-time PXE the node:
@@ -47,7 +47,7 @@ GitOps" intentionally deferred.)
 
 ## Bootstrap (one-time, per the plan)
 
-1. Install SOPS age key into Flux (`secrets/README.md`).
+1. Load the SOPS age key for render.sh (`enc/README.md`). In-cluster app secrets use sealed-secrets, so Flux does not need SOPS.
 2. Cilium already hand-installed on colo → the HelmRelease in `clusters/colo` adopts it.
 3. `flux bootstrap github --owner=vietcgi --repository=gitops-tinkerbell-oci \
    --branch=main --path=kubernetes/clusters/colo` — run from a firewall-allow-listed
@@ -56,5 +56,5 @@ GitOps" intentionally deferred.)
 ## Secrets & inventory
 
 Real MACs/IPs/`/27`/BMC + the Talos PKI are **SOPS-encrypted** here, never committed
-in plaintext (enforced by `secrets/.gitignore`). In-cluster app secrets keep using
-sealed-secrets. See `secrets/README.md`.
+in plaintext (enforced by `enc/.gitignore`). In-cluster app secrets keep using
+sealed-secrets. See `enc/README.md`.
