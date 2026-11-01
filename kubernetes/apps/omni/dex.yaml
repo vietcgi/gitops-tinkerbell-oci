@@ -1,6 +1,6 @@
-# Dex OIDC, also hostNetwork on the same node so auth.<domain>:5556 -> node public IP
-# (browsers hit it during the OIDC flow). Config (with the admin bcrypt hash) comes from
-# the sealed omni-dex-config secret; see ../../../../gitops-colo-la/infra/omni/deploy/dex/config.yaml.tmpl.
+# Dex OIDC provider. Serves its OWN HTTPS on :5556 (web.https + tlsCert/tlsKey in the
+# sealed config, pointing at the mounted omni-tls cert covering auth.qualityspace.com),
+# exposed on the node via hostPort 5556. The admin's browser hits it during the OIDC flow.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,19 +14,19 @@ spec:
     metadata:
       labels: { app: dex }
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         omni.sidero.dev/host: "true"
       containers:
         - name: dex
-          image: ghcr.io/dexidp/dex:v2.41.1
+          image: ghcr.io/dexidp/dex:v2.41.1   # multi-arch
           args: ["dex", "serve", "/etc/dex/config.yaml"]
+          ports:
+            - { name: https, containerPort: 5556, hostPort: 5556, protocol: TCP }
           volumeMounts:
             - { name: config, mountPath: /etc/dex, readOnly: true }
             - { name: tls, mountPath: /tls, readOnly: true }
       volumes:
         - name: config
-          secret: { secretName: omni-dex-config }
+          secret: { secretName: omni-dex-config }   # holds /etc/dex/config.yaml
         - name: tls
           secret: { secretName: omni-tls }

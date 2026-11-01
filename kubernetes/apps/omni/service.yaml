@@ -1,0 +1,11 @@
+# Headless service required by the Omni StatefulSet (serviceName: omni). Traffic reaches
+# Omni via the node hostPorts, not this service, so it's headless/ports-free.
+apiVersion: v1
+kind: Service
+metadata:
+  name: omni
+  namespace: omni-system
+spec:
+  clusterIP: None
+  selector:
+    app: omni
