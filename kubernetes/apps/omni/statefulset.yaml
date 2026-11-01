@@ -22,6 +22,17 @@ spec:
       # Single-node cluster; label it: kubectl label node metal-foundry-control-plane omni.sidero.dev/host=true
       nodeSelector:
         omni.sidero.dev/host: "true"
+      # Omni's backend does server-side calls to its own advertised URLs (the OIDC token
+      # exchange to Dex, and self-API calls). Those public names resolve to this node's
+      # OWN public IP, and since 5556/8443 are firewalled to the admin allow-list, the
+      # node's hairpin to itself is dropped (i/o timeout). Resolve them to the node's
+      # private IP so backend traffic stays in-cluster (TLS still validates via SNI).
+      # The browser is unaffected (it uses public DNS -> public IP -> the admin-locked FW).
+      hostAliases:
+        - ip: "10.0.1.67"
+          hostnames:
+            - auth.qualityspace.com
+            - omni.qualityspace.com
       containers:
         - name: omni
           image: ghcr.io/siderolabs/omni:v1.13.1   # multi-arch (runs on the A1.Flex ARM node)
