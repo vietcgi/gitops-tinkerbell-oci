@@ -18,15 +18,15 @@ local-path here; **back it up**. Two must-dos below (ARM images, reserved IP).
 
 ## Go-live steps (fill placeholders, then wire in)
 1. It's the **only** node — label it: `kubectl label node metal-foundry-control-plane omni.sidero.dev/host=true`
-   - **ARM64:** confirm the pinned Omni + Dex tags have arm64 variants (Dex v2.41.1 does):
-     `docker buildx imagetools inspect ghcr.io/siderolabs/omni:<tag> | grep -i arm64`
+   - **ARM64: confirmed OK.** Omni `v1.13.1` (pinned in statefulset.yaml) + Dex `v2.41.1` are
+     both multi-arch (amd64+arm64), verified via `docker manifest inspect` 2026-11-01.
    - **Public IP is EPHEMERAL** in terraform (`modules/compute/main.tf`) — switch it to a
      **reserved** public IP (free; comment in that file notes it) so the WireGuard
      advertised addr + DNS stay stable across a stop/start. Put that IP in `__NODE_PUBLIC_IP__`.
 2. Open the node's **VCN security list / NSG** (`terraform/modules/vcn`): TCP 443/8090/8091/8100/5556 + **UDP 50180**.
 3. Choose DNS names (`omni.<domain>`, `auth.<domain>`) → point both at the node public IP.
-4. Replace every `__PLACEHOLDER__` in these files (OMNI_VERSION, OMNI_DNS, AUTH_DNS,
-   NODE_PUBLIC_IP, OMNI_ACCOUNT_UUID=`uuidgen`, OMNI_USER_EMAIL).
+4. Replace every `__PLACEHOLDER__` in these files (OMNI_DNS, AUTH_DNS, NODE_PUBLIC_IP,
+   OMNI_ACCOUNT_UUID=`uuidgen`, OMNI_USER_EMAIL). Omni version is already pinned.
 5. Create + seal the three secrets (commands in `sealed-secrets.yaml`): `omni-etcd-key`
    (GPG `omni.asc`), `omni-dex-config` (Dex config w/ admin bcrypt hash), and
    `omni-oidc-client` (a random `openssl rand -hex 32` — the SAME value must go in the

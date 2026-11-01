@@ -22,7 +22,7 @@ spec:
         omni.sidero.dev/host: "true"
       containers:
         - name: omni
-          image: ghcr.io/siderolabs/omni:__OMNI_VERSION__   # pin a real release tag
+          image: ghcr.io/siderolabs/omni:v1.13.1   # verified multi-arch (amd64+arm64) 2026-11-01
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
