@@ -231,6 +231,75 @@ resource "oci_core_security_list" "public" {
     }
   }
 
+  # ---- Sidero Omni (apps/omni) — hostPort endpoints on this node ----
+  # UI/API + Dex + k8s-proxy are admin-facing (TLS + OIDC-gated) -> open.
+  # Ingress - Omni UI + API
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = "0.0.0.0/0"
+    stateless   = false
+    description = "Omni UI/API (TLS)"
+
+    tcp_options {
+      min = 8443
+      max = 8443
+    }
+  }
+
+  # Ingress - Omni Kubernetes proxy (admin kubectl via Omni)
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = "0.0.0.0/0"
+    stateless   = false
+    description = "Omni k8s-proxy (TLS)"
+
+    tcp_options {
+      min = 8100
+      max = 8100
+    }
+  }
+
+  # Ingress - Dex OIDC (admin browser login)
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = "0.0.0.0/0"
+    stateless   = false
+    description = "Dex OIDC (TLS)"
+
+    tcp_options {
+      min = 5556
+      max = 5556
+    }
+  }
+
+  # Omni SideroLink/machine API + WireGuard are reached by the COLO nodes ->
+  # locked to the colo /27 (broaden to 0.0.0.0/0 if colo egress differs).
+  # Ingress - Omni SideroLink / machine API
+  ingress_security_rules {
+    protocol    = "6" # TCP
+    source      = "108.181.38.64/27"
+    stateless   = false
+    description = "Omni SideroLink/machine API - locked to colo /27"
+
+    tcp_options {
+      min = 8090
+      max = 8090
+    }
+  }
+
+  # Ingress - Omni SideroLink WireGuard tunnel
+  ingress_security_rules {
+    protocol    = "17" # UDP
+    source      = "108.181.38.64/27"
+    stateless   = false
+    description = "Omni SideroLink WireGuard - locked to colo /27"
+
+    udp_options {
+      min = 50180
+      max = 50180
+    }
+  }
+
   freeform_tags = var.tags
 }
 
