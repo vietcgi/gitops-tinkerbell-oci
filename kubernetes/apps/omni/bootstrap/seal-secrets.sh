@@ -86,11 +86,14 @@ staticPasswords:
 EOF
 
 # ---- 4. seal all three into one sealed-secret.yaml (strict scope, ns-pinned) ----
+# Seal against the live controller (default) or, if SEALED_CERT points at the controller's
+# public cert, offline with --cert (lets you reseal from a fresh checkout without kube API access).
 seal() { # $1 secret name, $2 file key, $3 path
+  local ks=(kubeseal --format yaml)
+  if [ -n "${SEALED_CERT:-}" ]; then ks+=(--cert "$SEALED_CERT")
+  else ks+=(--controller-name "$SEALED_CONTROLLER_NAME" --controller-namespace "$SEALED_CONTROLLER_NS"); fi
   kubectl create secret generic "$1" -n "$NS" --dry-run=client -o yaml \
-    --from-file="$2=$3" \
-  | kubeseal --controller-name "$SEALED_CONTROLLER_NAME" \
-             --controller-namespace "$SEALED_CONTROLLER_NS" --format yaml
+    --from-file="$2=$3" | "${ks[@]}"
 }
 {
   seal omni-etcd-key   omni.asc          "$OUT/omni.asc"
