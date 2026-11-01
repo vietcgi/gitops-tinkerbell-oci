@@ -1,0 +1,14 @@
+# SOPS creation rules. Covers the colo Talos provisioning secrets + inventory only.
+# (In-cluster app secrets keep using sealed-secrets, the repo's existing pattern.)
+#
+# TODO(colo-private): replace the placeholder recipient with the REAL age PUBLIC
+# key. Generate once and keep the PRIVATE key in ~/colo-private/ (dir 700, file 600)
+# AND in a password manager; load it into Flux as a Secret named `sops-age` in
+# flux-system so the colo cluster can decrypt. Never commit the private key.
+#
+#   age-keygen -o ~/colo-private/colo-age.key     # prints the public key
+#
+creation_rules:
+  - path_regex: fleet/colo/secrets/.*\.sops\.ya?ml$
+    # age public key (recipient). Starts with "age1...".
+    age: age1placeholderplaceholderplaceholderplaceholderplaceholderplco0colo

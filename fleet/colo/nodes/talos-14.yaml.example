@@ -1,0 +1,16 @@
+# fleet/colo/nodes/talos-14.yaml.example — PER-NODE PATCH TEMPLATE (worker)
+# See hammer.yaml.example for the fill-and-encrypt workflow. Role: worker.
+# (Example addresses use the RFC 5737 documentation range on purpose.)
+machine:
+  network:
+    hostname: talos-14
+    interfaces:
+      - interface: eth0
+        dhcp: false
+        addresses:
+          - ${TALOS14_ADDR_CIDR}        # e.g. 203.0.113.71/27
+        routes:
+          - network: 0.0.0.0/0
+            gateway: ${COLO_GATEWAY}
+  install:
+    disk: /dev/sda

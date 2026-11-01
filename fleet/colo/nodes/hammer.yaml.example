@@ -1,0 +1,23 @@
+# fleet/colo/nodes/hammer.yaml.example  — PER-NODE PATCH TEMPLATE
+#
+# Copy this to the SOPS-encrypted inventory as the real per-node patch, fill the
+# ${...} placeholders with the node's REAL MAC/IP/gateway, and encrypt. NEVER commit
+# a filled copy with real addresses to the public repo (that is colo inventory).
+#   cp nodes/hammer.yaml.example secrets/nodes/hammer.yaml   # fill real values
+#   sops --encrypt --in-place secrets/nodes/hammer.yaml       # -> hammer.sops.yaml
+#
+# Role: control-plane (combine with talos/controlplane.yaml in render.sh).
+# (Example addresses below use the RFC 5737 documentation range on purpose.)
+machine:
+  network:
+    hostname: hammer
+    interfaces:
+      - interface: eth0                 # bnx2; confirm the real link name on the node
+        dhcp: false
+        addresses:
+          - ${HAMMER_ADDR_CIDR}         # e.g. 203.0.113.69/27
+        routes:
+          - network: 0.0.0.0/0
+            gateway: ${COLO_GATEWAY}
+  install:
+    disk: /dev/sda

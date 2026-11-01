@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Flux sources (HelmRepositories) used by the colo cluster
+  - sources
+  # CNI + kube-proxy replacement (adopted; must exist before other addons)
+  - cilium
+  # NOTE: cert-manager, ingress (Gateway API), monitoring, local-path etc. are
+  # added here as the pilot graduates. Kept minimal on purpose for first bring-up.

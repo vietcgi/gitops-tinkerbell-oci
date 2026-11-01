@@ -1,0 +1,7 @@
+# fleet/colo/talos/worker.yaml
+# Role patch for worker nodes. cni:none / proxy.disabled are set cluster-wide via
+# the control-plane config, so workers need no network stanza here. Placeholder for
+# worker-specific tuning as the fleet grows.
+machine:
+  nodeLabels:
+    colo-role: worker

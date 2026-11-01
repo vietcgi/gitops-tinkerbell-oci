@@ -1,0 +1,24 @@
+# colo fleet version lock — single source of truth for "latest everything".
+# Verified against upstreams on 2026-11-01. This file is documentation/reference
+# for humans and the (future) lifecycle reconciler; the authoritative pins live in
+# each component (Cilium chart in infrastructure/cilium/release.yaml; Talos/k8s in
+# the machine configs once the lifecycle layer lands).
+#
+# When bumping: re-check each upstream, update here AND the component, and roll
+# per the upgrade-path rules below in one reviewed commit.
+versions:
+  cilium: "1.21.0"        # helm.cilium.io index (latest stable)
+  talos: "v1.14.5"        # github.com/siderolabs/talos releases/latest
+  kubernetes: "v1.37.2"   # dl.k8s.io/release/stable.txt
+  certManager: "v1.21.3"  # github.com/cert-manager/cert-manager releases/latest
+
+# UPGRADE-PATH CAVEATS (why "latest" is a staged roll, not a single apply):
+#   - The running colo nodes are Talos v1.11.5 / k8s 1.34 (proven hammer install).
+#     Moving to the targets above is a MULTI-STEP upgrade, not one commit:
+#       * Kubernetes must go ONE MINOR AT A TIME (1.34 -> 1.35 -> 1.36 -> 1.37).
+#       * Talos should roll one minor at a time (1.11 -> 1.12 -> 1.13 -> 1.14),
+#         each with the bnx2-bnx2x Image Factory schematic baked into the asset.
+#   - Cilium 1.21.0 is a clean HelmRelease bump; helm-controller upgrades the
+#     adopted release on first reconcile (minor jump from whatever is running).
+#   - Do the Cilium + addon bumps FIRST (safe, in-cluster), then stage the
+#     Talos/k8s node rolls once the lifecycle layer can drain/upgrade/verify.

@@ -1,0 +1,15 @@
+---
+# Respond to ARP for LoadBalancer/externalIP addresses on the colo flat segment.
+# The R610 bnx2 NICs come up as eth*/enp* under Talos; match both plus generic en*.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: colo-l2-policy
+  namespace: kube-system
+spec:
+  interfaces:
+    - ^eth[0-9]+
+    - ^enp[0-9]+s[0-9]+
+    - ^en[a-z0-9]+
+  externalIPs: true
+  loadBalancerIPs: true

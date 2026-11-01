@@ -1,0 +1,73 @@
+---
+# Cilium for the colo TALOS cluster — PHASE-0 ADOPTION (zero-drift).
+#
+# These values are an EXACT copy of the running hand-installed release
+# (`helm -n kube-system get values cilium`, revision 2, chart v1.20.4), so when Flux
+# adopts the release the first reconcile is a no-op: no pod restarts, no reconfigure.
+# Verified against the live cluster (hammer/talos-13/talos-14) on 2026-11-01.
+#
+# DO NOT change values and version in the same step. The safe path is adopt-then-
+# evolve, one reviewed commit at a time (see PHASE-1 below). The cgroup + securityContext
+# blocks are Talos-specific and REQUIRED — do not drop them.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: cilium
+      version: "1.20.4"   # == running release; bump to 1.21.0 is a PHASE-1 commit
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+  # Take ownership of the existing Helm release without changing it.
+  upgrade:
+    crds: CreateReplace
+  values:
+    cgroup:
+      autoMount:
+        enabled: false
+      hostRoot: /sys/fs/cgroup
+    cluster:
+      name: hammer-colo
+    ipam:
+      mode: kubernetes
+    k8sServiceHost: localhost
+    k8sServicePort: 7445
+    kubeProxyReplacement: true
+    operator:
+      replicas: 1
+    routingMode: tunnel
+    tunnelProtocol: vxlan
+    securityContext:
+      capabilities:
+        ciliumAgent:
+          - CHOWN
+          - KILL
+          - NET_ADMIN
+          - NET_RAW
+          - IPC_LOCK
+          - SYS_ADMIN
+          - SYS_RESOURCE
+          - DAC_OVERRIDE
+          - FOWNER
+          - SETGID
+          - SETUID
+        cleanCiliumState:
+          - NET_ADMIN
+          - SYS_ADMIN
+          - SYS_RESOURCE
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PHASE-1 (post-adoption, each its OWN reviewed commit, verify between steps):
+#   1. bump chart to 1.21.0 (latest) — rolling Cilium upgrade
+#   2. l2announcements.enabled: true          -> activates infrastructure-config/cilium-l2
+#   3. externalIPs.enabled / nodePort.enabled: true
+#   4. gatewayAPI.enabled: true (+ hostNetwork) -> needs Gateway API CRDs first
+#   5. hubble relay+ui, prometheus serviceMonitors
+# These are intentionally NOT set here so adoption cannot disrupt the live CNI.
+# ─────────────────────────────────────────────────────────────────────────────

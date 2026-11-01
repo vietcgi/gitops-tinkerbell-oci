@@ -1,0 +1,37 @@
+---
+# colo cluster — Layer 1: infrastructure base (CNI + core)
+# Reconciled ONLY by the colo cluster's Flux (sourceRef flux-system is the colo
+# GitRepository created by `flux bootstrap ... --path=kubernetes/clusters/colo`).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: colo-infrastructure
+  namespace: flux-system
+spec:
+  interval: 1h
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./kubernetes/clusters/colo/infrastructure
+  prune: true
+---
+# colo cluster — Layer 2: post-install config (needs CRDs from Layer 1)
+# CiliumLoadBalancerIPPool + CiliumL2AnnouncementPolicy depend on the Cilium CRDs.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: colo-infrastructure-config
+  namespace: flux-system
+spec:
+  interval: 1h
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./kubernetes/clusters/colo/infrastructure-config
+  prune: true
+  dependsOn:
+    - name: colo-infrastructure

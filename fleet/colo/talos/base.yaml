@@ -1,0 +1,22 @@
+# fleet/colo/talos/base.yaml
+# Common machine-config patch applied to EVERY colo Talos node. Non-secret, so it
+# lives in the public repo. render.sh layers it on top of a talosctl-generated base
+# (from the EXISTING cluster secrets), then the role patch, a version-pinned install
+# patch (injected by render from the inventory), and the per-node patch.
+#
+# Intentionally minimal + version-agnostic so the SAME base validates whether the
+# fleet is on the current Talos (v1alpha1 monolith config) or a later one:
+#   - KubePrism is left at its default (enabled, port 7445 == Cilium k8sServicePort),
+#     so it is NOT set here (setting it explicitly conflicts with Talos >=1.14's
+#     separate KubePrismConfig document).
+#   - The install image + Talos version are injected by render.sh from the inventory
+#     (COLO_TALOS_VERSION + the bnx2 schematic), so bumping to "latest" is one edit
+#     plus a staged roll — not a value hardcoded here that could mismatch live nodes.
+machine:
+  kubelet:
+    nodeIP:
+      # Keep kubelet's node IP on the routed segment. render.sh overlays the REAL
+      # colo /27 from the SOPS inventory; this placeholder (RFC 5737) keeps the file
+      # valid and keeps the real /27 (inventory) out of the public repo.
+      validSubnets:
+        - 203.0.113.0/27  # PLACEHOLDER — real /27 via SOPS inventory

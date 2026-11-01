@@ -1,0 +1,14 @@
+# fleet/colo/schematic.yaml
+# Talos Image Factory schematic for the R610 fleet. POSTing this to
+# https://factory.talos.dev returns the schematic ID used in base.yaml's
+# install.image and in the PXE assets on the colo boot host:
+#
+#   fd096f676a0df013f9631767d26696f8cb5ba7b7d3921cd8781a061a7ce9016d
+#
+# The bnx2/bnx2x extension ships the Broadcom NetXtreme II firmware the R610 NICs
+# need to link up — required for the install PXE image, the installed system, AND
+# (later) any wipe/reset agent. Keep this in sync with the ID above if changed.
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/bnx2-bnx2x

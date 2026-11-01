@@ -1,0 +1,10 @@
+# fleet/colo/talos/controlplane.yaml
+# Role patch for control-plane nodes. The CNI/kube-proxy settings here are
+# cluster-wide and authoritative — workers inherit them from the cluster.
+cluster:
+  network:
+    cni:
+      name: none          # Cilium is the CNI; installed by Flux (from OCI) after bootstrap
+  proxy:
+    disabled: true        # Cilium kube-proxy replacement (kubeProxyReplacement: true)
+  allowSchedulingOnControlPlanes: true   # small fleet: run workloads on control planes

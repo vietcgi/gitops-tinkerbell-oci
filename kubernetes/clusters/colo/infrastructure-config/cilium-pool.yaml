@@ -1,0 +1,17 @@
+---
+# LoadBalancer IP pool for the colo cluster — Cilium LB-IPAM hands these out as
+# Service type=LoadBalancer addresses, announced over L2 (see cilium-l2.yaml).
+#
+# TODO(colo-private): the CIDR below is a DOCUMENTATION PLACEHOLDER (RFC 5737
+# TEST-NET-3). The real free public /27 assigned to the colo is inventory and
+# MUST NOT be committed to this public repo. Before `flux bootstrap`, overlay the
+# real block with a kustomize patch sourced from ~/colo-private/ (or a private
+# overlay branch). Open item in colo-cluster-plan.md: confirm the free /27 with
+# the colo first.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: colo-public-pool
+spec:
+  blocks:
+    - cidr: "203.0.113.0/27"  # PLACEHOLDER — replace via colo-private overlay
