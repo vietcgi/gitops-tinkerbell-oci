@@ -187,6 +187,12 @@ variable "admin_source_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "admin_source_cidrs" {
+  description = "Admin allow-list (list) for the admin planes: k8s API 6443, Omni UI/API 8443, Omni k8s-proxy 8100, Dex 5556. Set real IPs in a gitignored *.auto.tfvars (e.g. secrets.auto.tfvars) — do NOT commit IPs to this public repo."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 #=============================================================================
 # Budget Alerts
 #=============================================================================

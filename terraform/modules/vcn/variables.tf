@@ -40,3 +40,9 @@ variable "admin_source_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+variable "admin_source_cidrs" {
+  description = "Admin allow-list for the control/admin planes: k8s API 6443, Omni UI/API 8443, Omni k8s-proxy 8100, Dex 5556. One SL/NSG rule is generated per CIDR. Set the real value in a gitignored *.auto.tfvars (never commit IPs to this public repo)."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}

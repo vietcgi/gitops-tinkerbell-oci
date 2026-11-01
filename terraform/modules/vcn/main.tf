@@ -141,16 +141,19 @@ resource "oci_core_security_list" "public" {
     }
   }
 
-  # Ingress - Kubernetes API (restrict to specific CIDR in production)
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = var.admin_source_cidr
-    stateless   = false
-    description = "Kubernetes API - restrict source CIDR in production"
+  # Ingress - Kubernetes API (locked to the admin allow-list)
+  dynamic "ingress_security_rules" {
+    for_each = toset(var.admin_source_cidrs)
+    content {
+      protocol    = "6" # TCP
+      source      = ingress_security_rules.value
+      stateless   = false
+      description = "Kubernetes API - admin allow-list"
 
-    tcp_options {
-      min = 6443
-      max = 6443
+      tcp_options {
+        min = 6443
+        max = 6443
+      }
     }
   }
 
@@ -232,43 +235,53 @@ resource "oci_core_security_list" "public" {
   }
 
   # ---- Sidero Omni (apps/omni) — hostPort endpoints on this node ----
-  # UI/API + Dex + k8s-proxy are admin-facing (TLS + OIDC-gated) -> open.
+  # UI/API + Dex + k8s-proxy are admin-facing (TLS + OIDC-gated) and are
+  # locked to the admin allow-list (var.admin_source_cidrs) — one rule per CIDR.
   # Ingress - Omni UI + API
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = "0.0.0.0/0"
-    stateless   = false
-    description = "Omni UI/API (TLS)"
+  dynamic "ingress_security_rules" {
+    for_each = toset(var.admin_source_cidrs)
+    content {
+      protocol    = "6" # TCP
+      source      = ingress_security_rules.value
+      stateless   = false
+      description = "Omni UI/API (TLS) - admin allow-list"
 
-    tcp_options {
-      min = 8443
-      max = 8443
+      tcp_options {
+        min = 8443
+        max = 8443
+      }
     }
   }
 
   # Ingress - Omni Kubernetes proxy (admin kubectl via Omni)
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = "0.0.0.0/0"
-    stateless   = false
-    description = "Omni k8s-proxy (TLS)"
+  dynamic "ingress_security_rules" {
+    for_each = toset(var.admin_source_cidrs)
+    content {
+      protocol    = "6" # TCP
+      source      = ingress_security_rules.value
+      stateless   = false
+      description = "Omni k8s-proxy (TLS) - admin allow-list"
 
-    tcp_options {
-      min = 8100
-      max = 8100
+      tcp_options {
+        min = 8100
+        max = 8100
+      }
     }
   }
 
   # Ingress - Dex OIDC (admin browser login)
-  ingress_security_rules {
-    protocol    = "6" # TCP
-    source      = "0.0.0.0/0"
-    stateless   = false
-    description = "Dex OIDC (TLS)"
+  dynamic "ingress_security_rules" {
+    for_each = toset(var.admin_source_cidrs)
+    content {
+      protocol    = "6" # TCP
+      source      = ingress_security_rules.value
+      stateless   = false
+      description = "Dex OIDC (TLS) - admin allow-list"
 
-    tcp_options {
-      min = 5556
-      max = 5556
+      tcp_options {
+        min = 5556
+        max = 5556
+      }
     }
   }
 
@@ -381,12 +394,13 @@ resource "oci_core_network_security_group_security_rule" "control_plane_https" {
 }
 
 resource "oci_core_network_security_group_security_rule" "control_plane_k8s_api" {
+  for_each                  = toset(var.admin_source_cidrs)
   network_security_group_id = oci_core_network_security_group.control_plane.id
   direction                 = "INGRESS"
   protocol                  = "6"
-  source                    = var.admin_source_cidr
+  source                    = each.value
   source_type               = "CIDR_BLOCK"
-  description               = "Kubernetes API - restrict source CIDR in production"
+  description               = "Kubernetes API - admin allow-list"
 
   tcp_options {
     destination_port_range {

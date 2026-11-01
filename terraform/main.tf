@@ -68,6 +68,7 @@ module "vcn" {
   private_subnet_cidr = var.private_subnet_cidr
   ssh_source_cidr     = var.ssh_source_cidr
   admin_source_cidr   = var.admin_source_cidr
+  admin_source_cidrs  = var.admin_source_cidrs
   tags                = local.common_tags
 }
 
