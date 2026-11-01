@@ -1,0 +1,13 @@
+# Embedded etcd + sqlite. local-path = free, node-pinned (so pin the pod to the same
+# node, below). Back up etcd regularly — local-path does NOT survive node loss.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omni-data
+  namespace: omni-system
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi

@@ -1,0 +1,67 @@
+# Omni control plane. hostNetwork so WireGuard/SideroLink (UDP 50180) + the TCP ports
+# use the node's own public IP — no cloud LoadBalancer (no Oracle charge). Pin to the
+# ONE node that has the public IP + open security list (label it:
+#   kubectl label node <node> omni.sidero.dev/host=true ).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: omni
+  namespace: omni-system
+spec:
+  serviceName: omni
+  replicas: 1
+  selector:
+    matchLabels: { app: omni }
+  template:
+    metadata:
+      labels: { app: omni }
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        omni.sidero.dev/host: "true"
+      containers:
+        - name: omni
+          image: ghcr.io/siderolabs/omni:__OMNI_VERSION__   # pin a real release tag
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          args:
+            - --account-id=__OMNI_ACCOUNT_UUID__
+            - --name=hammer-colo-omni
+            - --cert=/tls/tls.crt
+            - --key=/tls/tls.key
+            - --machine-api-cert=/tls/tls.crt
+            - --machine-api-key=/tls/tls.key
+            - --bind-addr=0.0.0.0:443
+            - --machine-api-bind-addr=0.0.0.0:8090
+            - --event-sink-port=8091
+            - --k8s-proxy-bind-addr=0.0.0.0:8100
+            - --advertised-api-url=https://__OMNI_DNS__/
+            - --siderolink-api-advertised-url=https://__OMNI_DNS__:8090/
+            - --advertised-kubernetes-proxy-url=https://__OMNI_DNS__:8100/
+            - --siderolink-wireguard-advertised-addr=__NODE_PUBLIC_IP__:50180
+            - --private-key-source=file:///secrets/omni.asc
+            - --auth-auth0-enabled=false
+            - --auth-oidc-enabled=true
+            - --auth-oidc-provider-url=https://__AUTH_DNS__:5556
+            - --auth-oidc-client-id=omni
+            - --auth-oidc-client-secret=omni-dex-secret
+            - --sqlite-storage-path=/_out/sqlite/omni.db
+            - --initial-users=__OMNI_USER_EMAIL__
+            - --eula-accept-name=Kevin Vu
+            - --eula-accept-email=__OMNI_USER_EMAIL__
+          volumeMounts:
+            - { name: data, mountPath: /_out }
+            - { name: tls, mountPath: /tls, readOnly: true }
+            - { name: etcd-key, mountPath: /secrets, readOnly: true }
+            - { name: tun, mountPath: /dev/net/tun }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: omni-data }
+        - name: tls
+          secret: { secretName: omni-tls }
+        - name: etcd-key
+          secret: { secretName: omni-etcd-key }
+        - name: tun
+          hostPath: { path: /dev/net/tun, type: CharDevice }

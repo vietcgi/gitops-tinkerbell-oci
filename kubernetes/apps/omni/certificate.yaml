@@ -1,0 +1,29 @@
+# Self-signed CA + server cert (mirrors Sidero's on-prem default; no public ACME
+# validation needed, which matters because Omni binds :443 on hostNetwork and can't
+# share the Cilium Gateway). Clients import the CA (kubectl get secret omni-tls -o ...).
+# To use Let's Encrypt instead, swap issuerRef to letsencrypt-prod WITH a DNS-01 solver.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: omni-selfsigned
+  namespace: omni-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: omni-tls
+  namespace: omni-system
+spec:
+  secretName: omni-tls
+  duration: 87600h
+  issuerRef:
+    name: omni-selfsigned
+    kind: Issuer
+  commonName: __OMNI_DNS__            # e.g. omni.colo.example.org
+  dnsNames:
+    - __OMNI_DNS__
+    - __AUTH_DNS__                     # e.g. auth.colo.example.org
+  ipAddresses:
+    - __NODE_PUBLIC_IP__               # the pinned node's public IP (cert SAN)

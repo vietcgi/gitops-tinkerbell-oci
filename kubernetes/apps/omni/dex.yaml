@@ -1,0 +1,32 @@
+# Dex OIDC, also hostNetwork on the same node so auth.<domain>:5556 -> node public IP
+# (browsers hit it during the OIDC flow). Config (with the admin bcrypt hash) comes from
+# the sealed omni-dex-config secret; see ../../../../gitops-colo-la/infra/omni/deploy/dex/config.yaml.tmpl.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dex
+  namespace: omni-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: dex }
+  template:
+    metadata:
+      labels: { app: dex }
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        omni.sidero.dev/host: "true"
+      containers:
+        - name: dex
+          image: ghcr.io/dexidp/dex:v2.41.1
+          args: ["dex", "serve", "/etc/dex/config.yaml"]
+          volumeMounts:
+            - { name: config, mountPath: /etc/dex, readOnly: true }
+            - { name: tls, mountPath: /tls, readOnly: true }
+      volumes:
+        - name: config
+          secret: { secretName: omni-dex-config }
+        - name: tls
+          secret: { secretName: omni-tls }
