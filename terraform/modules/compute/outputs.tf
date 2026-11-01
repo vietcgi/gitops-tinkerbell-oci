@@ -4,13 +4,8 @@ output "instance_id" {
 }
 
 output "public_ip" {
-  description = "Reserved (static) public IP address"
-  value       = oci_core_public_ip.control_plane.ip_address
-}
-
-output "reserved_public_ip_id" {
-  description = "OCID of the reserved public IP (for terraform import / OCI console)"
-  value       = oci_core_public_ip.control_plane.id
+  description = "Public IP address (ephemeral)"
+  value       = oci_core_instance.control_plane.public_ip
 }
 
 output "private_ip" {

@@ -64,10 +64,8 @@ resource "oci_core_instance" "control_plane" {
   }
 
   create_vnic_details {
-    subnet_id = var.subnet_id
-    # No ephemeral public IP — a RESERVED one is attached below so the address
-    # survives stop/start (Omni bakes it into every colo node's WireGuard config).
-    assign_public_ip = false
+    subnet_id        = var.subnet_id
+    assign_public_ip = true
     display_name     = "${var.project_name}-control-plane-vnic"
     hostname_label   = "control"
     nsg_ids          = var.nsg_ids
@@ -93,48 +91,14 @@ resource "oci_core_instance" "control_plane" {
 }
 
 #-----------------------------------------------------------------------------
-# Reserved (static) Public IP  —  $0 on Always Free
+# Public IP  —  EPHEMERAL, left as-is (do NOT reserve/reassign)
 #
-# Omni (hosted on this node) advertises this IP as its SideroLink/WireGuard
-# endpoint, which every colo Talos node phones home to. An ephemeral IP can be
-# released on stop/start and would silently break the whole fleet, so we pin a
-# reserved one. The VNIC above is created WITHOUT an ephemeral IP; the reserved
-# IP binds to its primary private IP.
-#
-# !! SAFE-APPLY (this node is LIVE — k3s + Tailscale + apps) !!
-# Flipping assign_public_ip true->false can make `terraform apply` want to
-# REPLACE the instance (VNIC details are set at launch). DO NOT apply a plan that
-# shows the instance being destroyed/recreated. Safe procedure:
-#   1) Reserve + attach the IP out-of-band so the node is never recreated:
-#        VNIC=$(oci compute instance list-vnics --instance-id <instance-ocid> \
-#                 --query 'data[0]."id"' --raw-output)
-#        PRIV=$(oci network private-ip list --vnic-id "$VNIC" \
-#                 --query 'data[?"is-primary"]|[0].id' --raw-output)
-#        # delete the current ephemeral public IP on that private IP (brief IP change;
-#        # mgmt access is safe via Tailscale), then:
-#        oci network public-ip create --compartment-id <compartment> \
-#          --lifetime RESERVED --private-ip-id "$PRIV" \
-#          --display-name metal-foundry-control-plane-reserved-ip
-#   2) Import it so state matches and future plans are clean:
-#        terraform import 'module.control_plane.oci_core_public_ip.control_plane' <reserved-ip-ocid>
-#   3) Confirm `terraform plan` no longer wants to replace the instance.
+# The node keeps its existing ephemeral public IP (currently 170.9.8.103). We do
+# NOT reserve a new/secondary IP: none is available, and changing this address
+# would disrupt the live client sites (it's the Cloudflare origin), the direct
+# A-record for tinkerbell.qualityspace.com, and the colo firewall allow-list.
+# Omni instead SHARES this one IP with the production Cilium Gateway:
+#   - omni/auth .<domain> :443  -> existing Gateway HTTPS listener (HTTPRoute)
+#   - :8090 / :8100 TCP + :50180/UDP -> Omni pod hostPorts
+# See kubernetes/apps/omni/README.md. (Validated by Codex 2026-11-01.)
 #-----------------------------------------------------------------------------
-
-# Primary VNIC of the control-plane instance
-data "oci_core_vnic_attachments" "control_plane" {
-  compartment_id = var.compartment_id
-  instance_id    = oci_core_instance.control_plane.id
-}
-
-# Private IPs on that VNIC — [0] is the primary on a single-IP node
-data "oci_core_private_ips" "control_plane" {
-  vnic_id = data.oci_core_vnic_attachments.control_plane.vnic_attachments[0].vnic_id
-}
-
-resource "oci_core_public_ip" "control_plane" {
-  compartment_id = var.compartment_id
-  lifetime       = "RESERVED"
-  display_name   = "${var.project_name}-control-plane-reserved-ip"
-  private_ip_id  = data.oci_core_private_ips.control_plane.private_ips[0].id
-  freeform_tags  = var.tags
-}
