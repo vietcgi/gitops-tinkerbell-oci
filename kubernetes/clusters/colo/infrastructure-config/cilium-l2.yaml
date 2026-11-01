@@ -1,6 +1,15 @@
 ---
-# Respond to ARP for LoadBalancer/externalIP addresses on the colo flat segment.
-# The R610 bnx2 NICs come up as eth*/enp* under Talos; match both plus generic en*.
+# Respond to ARP for LoadBalancer IPs on the colo flat segment.
+#
+# SECURITY (CVE-2020-8554 class): externalIPs announcement is DISABLED. Announcing
+# arbitrary Service.spec.externalIPs over L2 would let any namespace that can create
+# a Service hijack an arbitrary IP on the segment. We announce ONLY loadBalancerIPs,
+# which are constrained to the dedicated CiliumLoadBalancerIPPool (the colo /27).
+#
+# Defense-in-depth to add as the fleet grows: a serviceSelector (opt-in label) and a
+# nodeSelector, and narrow `interfaces` to the actual public uplink NIC. Left broad
+# here because node link names (bnx2) are confirmed per node; the pool scoping is the
+# primary control.
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
 metadata:
@@ -10,6 +19,5 @@ spec:
   interfaces:
     - ^eth[0-9]+
     - ^enp[0-9]+s[0-9]+
-    - ^en[a-z0-9]+
-  externalIPs: true
-  loadBalancerIPs: true
+  externalIPs: false        # SECURITY: do NOT announce Service.spec.externalIPs
+  loadBalancerIPs: true     # only pool-constrained LB IPs are announced

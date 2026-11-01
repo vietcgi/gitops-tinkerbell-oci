@@ -39,6 +39,9 @@ esac
 sops -d "$SEC/inventory.sops.yaml"        > "$TMP/inventory.yaml"
 sops -d "$SEC/machine-secrets.sops.yaml"  > "$TMP/secrets.yaml"
 sops -d "$SEC/nodes/$HOST.sops.yaml"       > "$TMP/node.yaml"
+# Talos ingress firewall documents (NetworkDefaultActionConfig + NetworkRuleConfig
+# with the real allow-list). SOPS-encrypted because the allow-list is inventory.
+sops -d "$SEC/firewall.sops.yaml"         > "$TMP/firewall.yaml"
 
 inv() { yq -r ".$1" "$TMP/inventory.yaml"; }
 CLUSTER="$(inv COLO_CLUSTER_NAME)"; ENDPOINT="$(inv COLO_ENDPOINT)"
@@ -70,8 +73,21 @@ talosctl machineconfig patch "$TMP/$ROLE.yaml" \
   --patch "@$TMP/node.yaml" \
   --output "$OUT/$HOST.machineconfig.yaml"
 
+# --- append the Talos ingress firewall documents --------------------------------
+# SECURITY: the cluster restricts Talos API (50000) + kube-API (6443) to an
+# allow-list via NetworkDefaultActionConfig + NetworkRuleConfig. These are SEPARATE
+# config documents, so they are appended (not merged). Without them a reinstall
+# would re-open the APIs to the internet.
+{ printf '\n---\n'; cat "$TMP/firewall.yaml"; } >> "$OUT/$HOST.machineconfig.yaml"
+
+# --- guard: refuse to proceed if the firewall documents are missing -------------
+if ! grep -q 'kind: NetworkRuleConfig' "$OUT/$HOST.machineconfig.yaml"; then
+  echo "ABORT: rendered config lacks the ingress firewall (NetworkRuleConfig). Refusing to apply." >&2
+  exit 1
+fi
+
 talosctl validate --mode metal --config "$OUT/$HOST.machineconfig.yaml"
-echo "rendered + validated: $OUT/$HOST.machineconfig.yaml  (role=$ROLE, talos=$TALOS_V, k8s=$K8S_V)"
+echo "rendered + validated (incl. ingress firewall): $OUT/$HOST.machineconfig.yaml  (role=$ROLE, talos=$TALOS_V, k8s=$K8S_V)"
 
 if [[ -n "$APPLY_IP" ]]; then
   echo ">>> applying to $HOST @ $APPLY_IP (this changes the live node)"
