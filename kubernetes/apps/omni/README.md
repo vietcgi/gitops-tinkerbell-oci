@@ -20,9 +20,11 @@ local-path here; **back it up**. Two must-dos below (ARM images, reserved IP).
 1. It's the **only** node — label it: `kubectl label node metal-foundry-control-plane omni.sidero.dev/host=true`
    - **ARM64: confirmed OK.** Omni `v1.13.1` (pinned in statefulset.yaml) + Dex `v2.41.1` are
      both multi-arch (amd64+arm64), verified via `docker manifest inspect` 2026-11-01.
-   - **Public IP is EPHEMERAL** in terraform (`modules/compute/main.tf`) — switch it to a
-     **reserved** public IP (free; comment in that file notes it) so the WireGuard
-     advertised addr + DNS stay stable across a stop/start. Put that IP in `__NODE_PUBLIC_IP__`.
+   - **Reserved public IP:** now declared in terraform (`terraform/modules/compute/main.tf`,
+     `oci_core_public_ip.control_plane`, $0 on free tier) so the WireGuard advertised addr +
+     DNS stay stable across a stop/start. The node is LIVE — follow the **SAFE-APPLY** note in
+     that file (reserve out-of-band + `terraform import`); do NOT apply a plan that recreates
+     the instance. Put the resulting IP in `__NODE_PUBLIC_IP__`.
 2. Open the node's **VCN security list / NSG** (`terraform/modules/vcn`): TCP 443/8090/8091/8100/5556 + **UDP 50180**.
 3. Choose DNS names (`omni.<domain>`, `auth.<domain>`) → point both at the node public IP.
 4. Replace every `__PLACEHOLDER__` in these files (OMNI_DNS, AUTH_DNS, NODE_PUBLIC_IP,
