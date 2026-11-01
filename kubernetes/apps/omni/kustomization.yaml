@@ -4,7 +4,7 @@ resources:
   - namespace.yaml
   - pvc.yaml
   - certificate.yaml
-  - sealed-secrets.yaml
+  - sealed-secret.yaml
   - service.yaml
   - statefulset.yaml
   - dex.yaml

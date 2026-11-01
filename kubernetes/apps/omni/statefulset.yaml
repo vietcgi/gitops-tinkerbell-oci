@@ -29,7 +29,7 @@ spec:
             capabilities:
               add: ["NET_ADMIN"]
           args:
-            - --account-id=__OMNI_ACCOUNT_UUID__
+            - --account-id=3F842767-8EE9-4D7C-AE34-597DC5830272
             - --name=hammer-colo-omni
             # TLS served by Omni itself (cert covers omni.qualityspace.com)
             - --cert=/tls/tls.crt
@@ -63,9 +63,9 @@ spec:
             - --config-path=/config/omni-config.yaml
             # Required to adopt the already-running colo Talos nodes in place
             - --enable-cluster-import
-            - --initial-users=__OMNI_USER_EMAIL__
+            - --initial-users=vietcgi@gmail.com
             - --eula-accept-name=Kevin Vu
-            - --eula-accept-email=__OMNI_USER_EMAIL__
+            - --eula-accept-email=vietcgi@gmail.com
           ports:
             - { name: api, containerPort: 8443, hostPort: 8443, protocol: TCP }
             - { name: machine-api, containerPort: 8090, hostPort: 8090, protocol: TCP }

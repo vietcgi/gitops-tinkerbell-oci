@@ -311,6 +311,13 @@ runcmd:
   # Tinkerbell ports - locked to colo /27 subnet
   - iptables -I INPUT 14 -s 108.181.38.64/27 -p tcp --dport 42113 -j ACCEPT
   - iptables -I INPUT 15 -s 108.181.38.64/27 -p tcp --dport 7171 -j ACCEPT
+  # Sidero Omni (apps/omni) hostPort endpoints on this node
+  - iptables -I INPUT 16 -p tcp --dport 8443 -j ACCEPT
+  - iptables -I INPUT 17 -p tcp --dport 8100 -j ACCEPT
+  - iptables -I INPUT 18 -p tcp --dport 5556 -j ACCEPT
+  # Omni SideroLink machine API + WireGuard - locked to colo /27
+  - iptables -I INPUT 19 -s 108.181.38.64/27 -p tcp --dport 8090 -j ACCEPT
+  - iptables -I INPUT 20 -s 108.181.38.64/27 -p udp --dport 50180 -j ACCEPT
   - iptables -A FORWARD -j ACCEPT
   - netfilter-persistent save 2>/dev/null || true
 

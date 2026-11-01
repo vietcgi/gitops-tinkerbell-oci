@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - baohiemxe/
   - n8n/
+  - omni/
   - phatgiaohoahao/
   - qualityspace/
   - thienvienchanhtam/
