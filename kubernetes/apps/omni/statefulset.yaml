@@ -46,11 +46,19 @@ spec:
             - --auth-oidc-enabled=true
             - --auth-oidc-provider-url=https://__AUTH_DNS__:5556
             - --auth-oidc-client-id=omni
-            - --auth-oidc-client-secret=omni-dex-secret
+            - --auth-oidc-client-secret=$(OMNI_OIDC_CLIENT_SECRET)
             - --sqlite-storage-path=/_out/sqlite/omni.db
             - --initial-users=__OMNI_USER_EMAIL__
             - --eula-accept-name=Kevin Vu
             - --eula-accept-email=__OMNI_USER_EMAIL__
+          env:
+            # OIDC client secret injected from a SealedSecret (NOT a literal). The SAME
+            # value must appear in the Dex staticClients config (sealed omni-dex-config).
+            - name: OMNI_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: omni-oidc-client
+                  key: client-secret
           volumeMounts:
             - { name: data, mountPath: /_out }
             - { name: tls, mountPath: /tls, readOnly: true }

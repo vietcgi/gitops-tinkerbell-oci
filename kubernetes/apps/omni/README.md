@@ -17,8 +17,10 @@ Codex 2026-11-01.
 3. Choose DNS names (`omni.<domain>`, `auth.<domain>`) → point both at the node public IP.
 4. Replace every `__PLACEHOLDER__` in these files (OMNI_VERSION, OMNI_DNS, AUTH_DNS,
    NODE_PUBLIC_IP, OMNI_ACCOUNT_UUID=`uuidgen`, OMNI_USER_EMAIL).
-5. Create + seal the two secrets (commands in `sealed-secrets.yaml`): `omni-etcd-key`
-   (GPG `omni.asc`) and `omni-dex-config` (Dex config w/ admin bcrypt hash).
+5. Create + seal the three secrets (commands in `sealed-secrets.yaml`): `omni-etcd-key`
+   (GPG `omni.asc`), `omni-dex-config` (Dex config w/ admin bcrypt hash), and
+   `omni-oidc-client` (a random `openssl rand -hex 32` — the SAME value must go in the
+   Dex staticClients secret; never the example `omni-dex-secret`).
 6. Add `- omni/` to `kubernetes/apps/kustomization.yaml` (NOT before step 5 — a broken
    secret would fail the app), merge → Flux deploys it.
 7. Import your CA (`kubectl -n omni-system get secret omni-tls -o jsonpath='{.data.ca\.crt}' | base64 -d`)
