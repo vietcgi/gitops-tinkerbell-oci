@@ -36,15 +36,23 @@ for t in gpg openssl kubeseal kubectl htpasswd; do
 done
 mkdir -p "$OUT"; chmod 700 "$OUT"
 
-# ---- 1. shared secrets ----
-OIDC_CLIENT_SECRET="$(openssl rand -hex 32)"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-28)}"
-# dex wants a bcrypt hash; htpasswd -B emits $2y$, which dex accepts
-BCRYPT="$(htpasswd -bnBC 10 '' "$ADMIN_PASSWORD" | tr -d ':\n')"
-ADMIN_USERID="$(uuidgen | tr 'a-z' 'A-Z')"
+# Reuse already-staged material so "stage -> review -> --force" publishes EXACTLY what you
+# reviewed (not freshly regenerated secrets). Delete $OUT to force a clean regeneration.
+REUSE=0
+if [ -f "$OUT/omni.asc" ] && [ -f "$OUT/omni-config.yaml" ] && [ -f "$OUT/dex-config.yaml" ]; then
+  REUSE=1
+  echo "reusing existing staged material in $OUT (value-stable; rm -rf $OUT to regenerate)"
+fi
 
-# ---- 2. GPG etcd-encryption key -> omni.asc ----
-if [ ! -f "$OUT/omni.asc" ]; then
+if [ "$REUSE" -eq 0 ]; then
+  # ---- 1. shared secrets ----
+  OIDC_CLIENT_SECRET="$(openssl rand -hex 32)"
+  ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-28)}"
+  # dex wants a bcrypt hash; htpasswd -B emits $2y$, which dex accepts
+  BCRYPT="$(htpasswd -bnBC 10 '' "$ADMIN_PASSWORD" | tr -d ':\n')"
+  ADMIN_USERID="$(uuidgen | tr 'a-z' 'A-Z')"
+
+  # ---- 2. GPG etcd-encryption key -> omni.asc ----
   G="$(mktemp -d /tmp/ogpg.XXXXXX)"; export GNUPGHOME="$G"; chmod 700 "$G"
   gpg --batch --pinentry-mode loopback --passphrase '' \
       --quick-generate-key "Omni etcd <$ADMIN_EMAIL>" rsa4096 cert never >/dev/null 2>&1
@@ -52,16 +60,15 @@ if [ ! -f "$OUT/omni.asc" ]; then
   gpg --batch --pinentry-mode loopback --passphrase '' \
       --export-secret-keys --armor "$FP" > "$OUT/omni.asc"
   rm -rf "$G"; echo "generated etcd key -> $OUT/omni.asc"
-fi
 
-# ---- 3. render the two config files ----
-cat > "$OUT/omni-config.yaml" <<EOF
+  # ---- 3. render the two config files ----
+  cat > "$OUT/omni-config.yaml" <<EOF
 auth:
   oidc:
     clientSecret: $OIDC_CLIENT_SECRET
 EOF
 
-cat > "$OUT/dex-config.yaml" <<EOF
+  cat > "$OUT/dex-config.yaml" <<EOF
 issuer: https://$AUTH_HOST:$AUTH_PORT
 storage:
   type: memory
@@ -84,6 +91,7 @@ staticPasswords:
     userID: "$ADMIN_USERID"
     hash: $BCRYPT
 EOF
+fi
 
 # ---- 4. seal all three into one sealed-secret.yaml (strict scope, ns-pinned) ----
 # Seal against the live controller (default) or, if SEALED_CERT points at the controller's
@@ -105,8 +113,12 @@ seal() { # $1 secret name, $2 file key, $3 path
 
 echo
 echo "sealed -> $OUT/sealed-secret.yaml"
-echo "ADMIN PASSWORD (save to your password manager now; not stored elsewhere):"
-echo "    $ADMIN_PASSWORD"
+if [ "$REUSE" -eq 0 ]; then
+  echo "ADMIN PASSWORD (save to your password manager now; not stored elsewhere):"
+  echo "    $ADMIN_PASSWORD"
+else
+  echo "(reused staged material — admin password was printed on the run that generated it)"
+fi
 echo
 
 if [ "$FORCE" -eq 1 ]; then
