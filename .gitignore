@@ -54,3 +54,8 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Omni deploy bootstrap: plaintext staging (GPG key, rendered configs) — NEVER commit (public repo)
+kubernetes/apps/omni/bootstrap/_staging/
+*.asc
+!kubernetes/apps/omni/bootstrap/seal-secrets.sh
