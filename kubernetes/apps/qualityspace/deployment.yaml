@@ -34,7 +34,7 @@ spec:
         - name: web
           # Image updated by deploy/build-push.sh + this YAML at every release.
           # Format: ghcr.io/vietcgi/qualityspace:<short-sha>-<UTC-yymmdd-hhmm>
-          image: ghcr.io/vietcgi/qualityspace:094a337a-20261103-1505
+          image: ghcr.io/vietcgi/qualityspace:dba7b4d2-20261105-0616
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
