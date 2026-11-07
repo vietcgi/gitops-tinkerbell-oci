@@ -21,6 +21,26 @@ spec:
   hostnames:
     - origin-west.baohiemxe.com
   rules:
+    # Temporary maintenance gate. PathPrefix is segment-aware and covers both
+    # /api/contact and /api/contact/, for every method and existing hostname.
+    # Keep this while preserving old pod files and deploying durable storage.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/contact
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Cache-Control
+                value: no-store, private
+              - name: Retry-After
+                value: "120"
+              - name: X-BaoHiemXe-Contact-Maintenance
+                value: "1"
+      backendRefs:
+        - name: baohiemxe-contact-maintenance
+          port: 80
     - matches:
         - path:
             type: PathPrefix
